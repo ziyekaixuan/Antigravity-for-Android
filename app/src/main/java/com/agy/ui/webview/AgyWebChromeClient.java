@@ -64,6 +64,8 @@ public final class AgyWebChromeClient extends WebChromeClient {
         if (request == null) {
             return;
         }
+        Log.i(TAG, "onPermissionRequest: origin=" + request.getOrigin()
+                + " resources=" + java.util.Arrays.toString(request.getResources()));
         List<String> grantable = new ArrayList<>();
         List<String> needed = new ArrayList<>();
         for (String res : request.getResources()) {
@@ -76,6 +78,7 @@ public final class AgyWebChromeClient extends WebChromeClient {
             }
         }
         if (grantable.isEmpty() || context == null) {
+            Log.w(TAG, "onPermissionRequest: denying (no grantable resources or no context)");
             request.deny();
             return;
         }
@@ -86,9 +89,12 @@ public final class AgyWebChromeClient extends WebChromeClient {
             }
         }
         if (missing.isEmpty()) {
+            Log.i(TAG, "onPermissionRequest: granting "
+                    + java.util.Arrays.toString(grantable.toArray(new String[0])));
             request.grant(grantable.toArray(new String[0]));
             return;
         }
+        Log.i(TAG, "onPermissionRequest: requesting runtime permissions: " + missing);
         Activity activity = asActivity(context);
         if (activity == null) {
             request.deny();
