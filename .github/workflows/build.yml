@@ -1,4 +1,4 @@
-name: Build OwnAgy
+name: Build Antigravity
 
 on:
   push:
@@ -47,7 +47,7 @@ jobs:
           CORE=$(grep '^CORE_VERSION=' config/app.env | head -1 | cut -d= -f2)
           echo "name=$V" >> "$GITHUB_OUTPUT"
           echo "core=$CORE" >> "$GITHUB_OUTPUT"
-          echo "Building OwnAgy $V ($C), core $CORE"
+          echo "Building Antigravity $V ($C), core $CORE"
 
       - name: Run module tests
         run: |
@@ -94,14 +94,14 @@ jobs:
           done
           echo "keystore b64 length: $(printf '%s' "$B64" | wc -c)"
           printf '%s' "$B64" | base64 -d > "$RUNNER_TEMP/release.p12"
-          echo "75101d56937a75b2aca26abea3fa3f36ba7755cafdfea1e8ee6500ec667ccbde  $RUNNER_TEMP/release.p12" | sha256sum -c -
+          echo "ea5278e5254ae5f24d72f1e200cbe3263749e9ee4605b37be8b74234e9d4a1c8  $RUNNER_TEMP/release.p12" | sha256sum -c -
           V="${{ steps.ver.outputs.name }}"
-          apksigner sign --ks "$RUNNER_TEMP/release.p12" --ks-key-alias "$KEY_ALIAS" --ks-pass pass:"$KEYSTORE_PASSWORD" --key-pass pass:"$KEY_PASSWORD" --out "OwnAgy-$V-standard.apk" dist/antigravity.apk
-          apksigner sign --ks "$RUNNER_TEMP/release.p12" --ks-key-alias "$KEY_ALIAS" --ks-pass pass:"$KEYSTORE_PASSWORD" --key-pass pass:"$KEY_PASSWORD" --out "OwnAgy-$V-region-bypass.apk" dist/antigravity-region-bypass.apk
+          apksigner sign --ks "$RUNNER_TEMP/release.p12" --ks-key-alias "$KEY_ALIAS" --ks-pass pass:"$KEYSTORE_PASSWORD" --key-pass pass:"$KEY_PASSWORD" --out "Antigravity-$V-standard.apk" dist/antigravity.apk
+          apksigner sign --ks "$RUNNER_TEMP/release.p12" --ks-key-alias "$KEY_ALIAS" --ks-pass pass:"$KEYSTORE_PASSWORD" --key-pass pass:"$KEY_PASSWORD" --out "Antigravity-$V-region-bypass.apk" dist/antigravity-region-bypass.apk
           rm -f "$RUNNER_TEMP/release.p12"
-          apksigner verify --print-certs "OwnAgy-$V-standard.apk" | head -3
-          apksigner verify --print-certs "OwnAgy-$V-region-bypass.apk" | head -3
-          sha256sum "OwnAgy-$V-standard.apk" "OwnAgy-$V-region-bypass.apk" > SHA256SUMS.txt
+          apksigner verify --print-certs "Antigravity-$V-standard.apk" | head -3
+          apksigner verify --print-certs "Antigravity-$V-region-bypass.apk" | head -3
+          sha256sum "Antigravity-$V-standard.apk" "Antigravity-$V-region-bypass.apk" > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Upload artifacts
@@ -109,7 +109,7 @@ jobs:
         with:
           name: ownagy-${{ steps.ver.outputs.name }}
           path: |
-            OwnAgy-*.apk
+            Antigravity-*.apk
             SHA256SUMS.txt
 
       - name: Publish release
@@ -117,18 +117,18 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.name }}
-          name: OwnAgy ${{ steps.ver.outputs.name }}
+          name: Antigravity ${{ steps.ver.outputs.name }}
           make_latest: true
           files: |
-            OwnAgy-*.apk
+            Antigravity-*.apk
             SHA256SUMS.txt
           body: |
-            OwnAgy ${{ steps.ver.outputs.name }}（官方核心 ${{ steps.ver.outputs.core }}）
+            Antigravity ${{ steps.ver.outputs.name }}（官方核心 ${{ steps.ver.outputs.core }}）
 
             | 文件 | 说明 |
             | :--- | :--- |
-            | `OwnAgy-${{ steps.ver.outputs.name }}-region-bypass.apk` | 绕区版 |
-            | `OwnAgy-${{ steps.ver.outputs.name }}-standard.apk` | 标准版 |
+            | `Antigravity-${{ steps.ver.outputs.name }}-region-bypass.apk` | 绕区版 |
+            | `Antigravity-${{ steps.ver.outputs.name }}-standard.apk` | 标准版 |
             | `SHA256SUMS.txt` | 校验和 |
 
             与旧版本签名一致，可直接覆盖安装.
