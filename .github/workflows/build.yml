@@ -44,13 +44,31 @@ jobs:
         run: |
           V=$(grep '^APP_VERSION_NAME=' config/app.env | head -1 | cut -d= -f2)
           C=$(grep '^APP_VERSION_CODE=' config/app.env | head -1 | cut -d= -f2)
+          CORE=$(grep '^CORE_VERSION=' config/app.env | head -1 | cut -d= -f2)
           echo "name=$V" >> "$GITHUB_OUTPUT"
-          echo "Building OwnAgy $V ($C)"
+          echo "core=$CORE" >> "$GITHUB_OUTPUT"
+          echo "Building OwnAgy $V ($C), core $CORE"
+
+      - name: Run module tests
+        run: |
+          bash modules/env/tests/run_all.sh
+          bash modules/io/tests/run_all.sh
+          bash modules/builder/tests/run_all.sh
+
+      - name: Cache patched core
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/agy_cache
+          key: patched-core-${{ hashFiles('modules/core/pristine/language_server.tar.gz', 'modules/patches/**', 'modules/runner/prepare_runtime.py') }}
 
       - name: Build standard edition
+        env:
+          AGY_CACHE_DIR: ${{ runner.temp }}/agy_cache
         run: bash build.sh
 
       - name: Build region-bypass edition
+        env:
+          AGY_CACHE_DIR: ${{ runner.temp }}/agy_cache
         run: bash build.sh --region-bypass
 
       - name: Sign with the release key (from Secrets)
@@ -69,7 +87,8 @@ jobs:
         run: |
           B64=""
           for i in 1 2 3 4 5 6 7 8; do
-            v="$(eval "printf '%s' \"\$KS$i\"" | tr -d '[:space:]')"
+            var="KS$i"
+            v="$(printf '%s' "${!var}" | tr -d '[:space:]')"
             echo "chunk $i sha256: $(printf '%s' "$v" | sha256sum | cut -d' ' -f1)"
             B64="$B64$v"
           done
@@ -77,18 +96,11 @@ jobs:
           printf '%s' "$B64" | base64 -d > "$RUNNER_TEMP/release.p12"
           echo "75101d56937a75b2aca26abea3fa3f36ba7755cafdfea1e8ee6500ec667ccbde  $RUNNER_TEMP/release.p12" | sha256sum -c -
           V="${{ steps.ver.outputs.name }}"
-          apksigner sign --ks "$RUNNER_TEMP/release.p12" \
-            --ks-key-alias "$KEY_ALIAS" \
-            --ks-pass pass:"$KEYSTORE_PASSWORD" \
-            --key-pass pass:"$KEY_PASSWORD" \
-            --out "OwnAgy-$V-standard.apk" dist/antigravity.apk
-          apksigner sign --ks "$RUNNER_TEMP/release.p12" \
-            --ks-key-alias "$KEY_ALIAS" \
-            --ks-pass pass:"$KEYSTORE_PASSWORD" \
-            --key-pass pass:"$KEY_PASSWORD" \
-            --out "OwnAgy-$V-region-bypass.apk" dist/antigravity-region-bypass.apk
+          apksigner sign --ks "$RUNNER_TEMP/release.p12" --ks-key-alias "$KEY_ALIAS" --ks-pass pass:"$KEYSTORE_PASSWORD" --key-pass pass:"$KEY_PASSWORD" --out "OwnAgy-$V-standard.apk" dist/antigravity.apk
+          apksigner sign --ks "$RUNNER_TEMP/release.p12" --ks-key-alias "$KEY_ALIAS" --ks-pass pass:"$KEYSTORE_PASSWORD" --key-pass pass:"$KEY_PASSWORD" --out "OwnAgy-$V-region-bypass.apk" dist/antigravity-region-bypass.apk
           rm -f "$RUNNER_TEMP/release.p12"
           apksigner verify --print-certs "OwnAgy-$V-standard.apk" | head -3
+          apksigner verify --print-certs "OwnAgy-$V-region-bypass.apk" | head -3
           sha256sum "OwnAgy-$V-standard.apk" "OwnAgy-$V-region-bypass.apk" > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
@@ -111,7 +123,7 @@ jobs:
             OwnAgy-*.apk
             SHA256SUMS.txt
           body: |
-            OwnAgy ${{ steps.ver.outputs.name }}（官方核心 2.34.0）
+            OwnAgy ${{ steps.ver.outputs.name }}（官方核心 ${{ steps.ver.outputs.core }}）
 
             | 文件 | 说明 |
             | :--- | :--- |
