@@ -51,7 +51,6 @@ public class MainActivity extends Activity
 
     private static final String TAG = "MainActivity";
     private static final int REQUEST_STORAGE = 100;
-    private static final int REQUEST_MEDIA_PERMISSIONS = 101;
     private static final int REQUEST_FILE_CHOOSER = 1002;
     private static final long SPLASH_TIMEOUT_MS = 60000;
     private static final long POLL_STARTUP_INTERVAL_MS = 50;
@@ -140,11 +139,6 @@ public class MainActivity extends Activity
         themeManager = new ThemeManager(this);
         themeManager.applyToActivity(this);
 
-        // Request mic/camera BEFORE the WebView is created: the WebView's
-        // renderer process is spawned lazily, and if RECORD_AUDIO is granted
-        // only after it exists, getUserMedia fails with "Microphone is in use
-        // or unavailable" even though the app-level permission is held.
-        requestMediaPermissions();
 
         oauthManager = new OAuthManager();
         runtimeManager = new RuntimeManager(this);
@@ -366,25 +360,6 @@ public class MainActivity extends Activity
                         android.Manifest.permission.WRITE_EXTERNAL_STORAGE
                 }, REQUEST_STORAGE);
             }
-        }
-    }
-
-    /** Requests mic/camera early so the WebView renderer (spawned lazily) has them. */
-    private void requestMediaPermissions() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return;
-        }
-        List<String> missing = new ArrayList<>();
-        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
-                != PackageManager.PERMISSION_GRANTED) {
-            missing.add(android.Manifest.permission.RECORD_AUDIO);
-        }
-        if (checkSelfPermission(android.Manifest.permission.CAMERA)
-                != PackageManager.PERMISSION_GRANTED) {
-            missing.add(android.Manifest.permission.CAMERA);
-        }
-        if (!missing.isEmpty()) {
-            requestPermissions(missing.toArray(new String[0]), REQUEST_MEDIA_PERMISSIONS);
         }
     }
 
