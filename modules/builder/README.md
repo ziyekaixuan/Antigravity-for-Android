@@ -74,7 +74,7 @@ flowchart TD
 ### 步骤 01：生成配置 (`01_gen_config.py`)
 - **输入**：`config/app.env` 中的变量和 `DEV_MODE`（0 或 1）。
 - **输出**：
-  - `build/gen/com/qin/agy/BuildConfig.java`：静态字段 `PORT`、`GATEWAY_PORT`、`CORE_VERSION`、`APP_VERSION_NAME`、`DEBUG`。
+  - `build/gen/com/agy/BuildConfig.java`：静态字段 `PORT`、`GATEWAY_PORT`、`CORE_VERSION`、`APP_VERSION_NAME`、`DEBUG`。
   - `build/res/values/gen.xml`：供 Android framework 使用的字符串和整数 XML 资源（生成到构建树中，避免污染仓库和 `git status`）。
   - `build/AndroidManifest.xml`：替换 `${applicationId}`，dev 模式下将包名改为 `io.github.ziyekaixuan.antigravity.dev`，设置 `android:debuggable="true"`，并隔离 `permission.INTERNAL_BROADCAST`。
 

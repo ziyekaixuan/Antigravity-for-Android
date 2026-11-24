@@ -88,7 +88,7 @@ class TestBuilder(unittest.TestCase):
         self.assertEqual(res.returncode, 0, res.stderr)
         self.assertIn("Generating fallback com.agy.R", res.stdout)
         self.assertTrue(os.path.isfile(os.path.join(gen_dir, "com", "agy", "R.java")))
-        self.assertTrue(os.path.isfile(os.path.join(gen_dir, "com", "qin", "agy", "R.java")))
+        self.assertTrue(os.path.isfile(os.path.join(gen_dir, "io", "github", "ziyekaixuan", "antigravity", "R.java")))
 
         # Test dev mode (io.github.ziyekaixuan.antigravity.dev) -> generates both io.github.ziyekaixuan.antigravity.dev.R and fallback com.agy.R
         build_dir_dev = os.path.join(self.tmp_dir, "build_dev")
@@ -102,7 +102,7 @@ class TestBuilder(unittest.TestCase):
         self.assertEqual(res_dev.returncode, 0, res_dev.stderr)
         self.assertIn("Generating fallback com.agy.R", res_dev.stdout)
         self.assertTrue(os.path.isfile(os.path.join(gen_dir_dev, "com", "agy", "R.java")))
-        self.assertTrue(os.path.isfile(os.path.join(gen_dir_dev, "com", "qin", "agy", "dev", "R.java")))
+        self.assertTrue(os.path.isfile(os.path.join(gen_dir_dev, "io", "github", "ziyekaixuan", "antigravity", "dev", "R.java")))
 
     def test_03_and_04_compile_and_dex_argfile(self):
         import subprocess
