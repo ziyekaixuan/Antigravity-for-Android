@@ -1,4 +1,4 @@
-#!/data/data/com.qin.agy/files/usr/bin/bash
+#!/data/data/io.github.ziyekaixuan.antigravity/files/usr/bin/bash
 # version.sh -- Debian version comparison wrappers.
 # Requires PKG_LIB (dir of vercmp.awk).
 

@@ -9,12 +9,12 @@ export DIST_DIR="$PROJECT_ROOT/dist"
 export APP_DIR="$PROJECT_ROOT/app"
 export TOOLS_DIR="$PROJECT_ROOT/tools"
 
-if [ -d "/data/user/0/com.qin.agy.dev/files" ] && [ -w "/data/user/0/com.qin.agy.dev/files" ]; then
-    export HOME="/data/user/0/com.qin.agy.dev/files"
-    export PATH="/data/user/0/com.qin.agy.dev/files/usr/bin:$PATH"
-elif [ -d "/data/user/0/com.qin.agy/files" ] && [ -w "/data/user/0/com.qin.agy/files" ]; then
-    export HOME="/data/user/0/com.qin.agy/files"
-    export PATH="/data/user/0/com.qin.agy/files/usr/bin:$PATH"
+if [ -d "/data/user/0/io.github.ziyekaixuan.antigravity.dev/files" ] && [ -w "/data/user/0/io.github.ziyekaixuan.antigravity.dev/files" ]; then
+    export HOME="/data/user/0/io.github.ziyekaixuan.antigravity.dev/files"
+    export PATH="/data/user/0/io.github.ziyekaixuan.antigravity.dev/files/usr/bin:$PATH"
+elif [ -d "/data/user/0/io.github.ziyekaixuan.antigravity/files" ] && [ -w "/data/user/0/io.github.ziyekaixuan.antigravity/files" ]; then
+    export HOME="/data/user/0/io.github.ziyekaixuan.antigravity/files"
+    export PATH="/data/user/0/io.github.ziyekaixuan.antigravity/files/usr/bin:$PATH"
 fi
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
@@ -68,18 +68,18 @@ if [ -n "$CUSTOM_OUT" ]; then
 elif [ "$DEV_MODE" = "1" ]; then
     if [ "$NO_BYPASS" = "0" ]; then
         OUT_APK="$DIST_DIR/${BASE_PREFIX}-dev-region-bypass.apk"
-        EDITION_LABEL="DEV EDITION WITH REGION BYPASS (com.qin.agy.dev, port 45168, debuggable)"
+        EDITION_LABEL="DEV EDITION WITH REGION BYPASS (io.github.ziyekaixuan.antigravity.dev, port 45168, debuggable)"
     else
         OUT_APK="$DIST_DIR/${BASE_PREFIX}-dev.apk"
-        EDITION_LABEL="DEV EDITION STANDARD (com.qin.agy.dev, port 45168, debuggable, standard gates)"
+        EDITION_LABEL="DEV EDITION STANDARD (io.github.ziyekaixuan.antigravity.dev, port 45168, debuggable, standard gates)"
     fi
 else
     if [ "$NO_BYPASS" = "0" ]; then
         OUT_APK="$DIST_DIR/${BASE_PREFIX}-region-bypass.apk"
-        EDITION_LABEL="RELEASE EDITION WITH REGION BYPASS (com.qin.agy, port 45167, with account eligibility bypass)"
+        EDITION_LABEL="RELEASE EDITION WITH REGION BYPASS (io.github.ziyekaixuan.antigravity, port 45167, with account eligibility bypass)"
     else
         OUT_APK="$DIST_DIR/${BASE_PREFIX}.apk"
-        EDITION_LABEL="RELEASE EDITION STANDARD (com.qin.agy, port 45167, original gates)"
+        EDITION_LABEL="RELEASE EDITION STANDARD (io.github.ziyekaixuan.antigravity, port 45167, original gates)"
     fi
 fi
 

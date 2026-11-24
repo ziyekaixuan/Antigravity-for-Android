@@ -1,4 +1,4 @@
-#!/data/data/com.qin.agy/files/usr/bin/bash
+#!/data/data/io.github.ziyekaixuan.antigravity/files/usr/bin/bash
 # fetch.sh -- download with sha256 verification and cache.
 # Requires curl, sha256sum, log, die.
 

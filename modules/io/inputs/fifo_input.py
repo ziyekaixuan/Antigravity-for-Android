@@ -23,8 +23,8 @@ def get_safe_runtime_dir() -> str:
     """
     candidates = [
         os.environ.get("AGY_RUNTIME_DIR"),
-        "/data/user/0/com.qin.agy/files/runtime",
-        "/data/user/0/com.qin.agy.dev/files/runtime",
+        "/data/user/0/io.github.ziyekaixuan.antigravity/files/runtime",
+        "/data/user/0/io.github.ziyekaixuan.antigravity.dev/files/runtime",
         os.environ.get("TMPDIR"),
         tempfile.gettempdir(),
     ]

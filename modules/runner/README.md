@@ -203,7 +203,7 @@ stateDiagram-v2
 
 ### 问题 8：APP_ID 动态确定（已消除）
 - **文件：** `start_core.sh`、`stop_core.sh`、`test_e2e.sh`
-- **实现：** `APP_ID`（`com.qin.agy` vs `com.qin.agy.dev`）根据 `AGY_APPLICATION_ID` 变量、`$HOME` 中的正则表达式（`/data/user/0/<app_id>`）或检查应用目录是否存在来动态确定。
+- **实现：** `APP_ID`（`io.github.ziyekaixuan.antigravity` vs `io.github.ziyekaixuan.antigravity.dev`）根据 `AGY_APPLICATION_ID` 变量、`$HOME` 中的正则表达式（`/data/user/0/<app_id>`）或检查应用目录是否存在来动态确定。
 
 ---
 
@@ -247,14 +247,14 @@ bash test_all_modules.sh
 
 # 3. 手动隔离运行各组件：
 # 准备 runtime：
-python3 modules/runner/prepare_runtime.py /data/user/0/com.qin.agy.dev/files/standalone_runtime
+python3 modules/runner/prepare_runtime.py /data/user/0/io.github.ziyekaixuan.antigravity.dev/files/standalone_runtime
 
 # 在指定端口上启动核心：
-bash modules/runner/start_core.sh /data/user/0/com.qin.agy.dev/files/standalone_runtime 45159
+bash modules/runner/start_core.sh /data/user/0/io.github.ziyekaixuan.antigravity.dev/files/standalone_runtime 45159
 
 # 检查可用性（超时 10 秒）：
 python3 modules/runner/probe_server.py 45159 10
 
 # 正确停止：
-bash modules/runner/stop_core.sh /data/user/0/com.qin.agy.dev/files/standalone_runtime
+bash modules/runner/stop_core.sh /data/user/0/io.github.ziyekaixuan.antigravity.dev/files/standalone_runtime
 ```

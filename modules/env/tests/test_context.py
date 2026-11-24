@@ -43,52 +43,52 @@ class TestContext(unittest.TestCase):
         os.environ.pop("AGY_APPLICATION_ID", None)
         os.environ.pop("APPLICATION_ID", None)
         os.environ.pop("DEV_MODE", None)
-        self.assertEqual(path_resolver.get_application_id(), "com.qin.agy")
+        self.assertEqual(path_resolver.get_application_id(), "io.github.ziyekaixuan.antigravity")
         paths = path_resolver.load_paths()
-        self.assertEqual(paths["app_root"], "/data/user/0/com.qin.agy/files")
+        self.assertEqual(paths["app_root"], "/data/user/0/io.github.ziyekaixuan.antigravity/files")
 
     def test_05_dynamic_application_id_env_var(self):
-        os.environ["AGY_APPLICATION_ID"] = "com.qin.agy.dev"
+        os.environ["AGY_APPLICATION_ID"] = "io.github.ziyekaixuan.antigravity.dev"
         paths = path_resolver.load_paths()
-        self.assertEqual(paths["app_root"], "/data/user/0/com.qin.agy.dev/files")
-        self.assertEqual(paths["cache"], "/data/user/0/com.qin.agy.dev/cache")
+        self.assertEqual(paths["app_root"], "/data/user/0/io.github.ziyekaixuan.antigravity.dev/files")
+        self.assertEqual(paths["cache"], "/data/user/0/io.github.ziyekaixuan.antigravity.dev/cache")
 
         env = env_builder.build_process_env()
-        self.assertEqual(env["HOME"], "/data/user/0/com.qin.agy.dev/files")
-        self.assertEqual(env["TMPDIR"], "/data/user/0/com.qin.agy.dev/cache")
-        self.assertEqual(env["AGY_APPLICATION_ID"], "com.qin.agy.dev")
+        self.assertEqual(env["HOME"], "/data/user/0/io.github.ziyekaixuan.antigravity.dev/files")
+        self.assertEqual(env["TMPDIR"], "/data/user/0/io.github.ziyekaixuan.antigravity.dev/cache")
+        self.assertEqual(env["AGY_APPLICATION_ID"], "io.github.ziyekaixuan.antigravity.dev")
 
     def test_06_dynamic_application_id_dev_mode(self):
         if "AGY_APPLICATION_ID" in os.environ:
             del os.environ["AGY_APPLICATION_ID"]
         os.environ["DEV_MODE"] = "1"
         paths = path_resolver.load_paths()
-        self.assertEqual(paths["app_root"], "/data/user/0/com.qin.agy.dev/files")
+        self.assertEqual(paths["app_root"], "/data/user/0/io.github.ziyekaixuan.antigravity.dev/files")
 
         env = env_builder.build_process_env()
-        self.assertEqual(env["HOME"], "/data/user/0/com.qin.agy.dev/files")
-        self.assertEqual(env["AGY_APPLICATION_ID"], "com.qin.agy.dev")
+        self.assertEqual(env["HOME"], "/data/user/0/io.github.ziyekaixuan.antigravity.dev/files")
+        self.assertEqual(env["AGY_APPLICATION_ID"], "io.github.ziyekaixuan.antigravity.dev")
 
     def test_07_explicit_app_id_override(self):
-        paths = path_resolver.load_paths(app_id="com.qin.agy.custom")
-        self.assertEqual(paths["app_root"], "/data/user/0/com.qin.agy.custom/files")
-        sub = path_resolver.resolve_subpath("runtime", "bin/test", app_id="com.qin.agy.custom")
-        self.assertEqual(sub, "/data/user/0/com.qin.agy.custom/files/runtime/bin/test")
+        paths = path_resolver.load_paths(app_id="io.github.ziyekaixuan.antigravity.custom")
+        self.assertEqual(paths["app_root"], "/data/user/0/io.github.ziyekaixuan.antigravity.custom/files")
+        sub = path_resolver.resolve_subpath("runtime", "bin/test", app_id="io.github.ziyekaixuan.antigravity.custom")
+        self.assertEqual(sub, "/data/user/0/io.github.ziyekaixuan.antigravity.custom/files/runtime/bin/test")
 
-        env = env_builder.build_process_env(app_id="com.qin.agy.custom")
-        self.assertEqual(env["HOME"], "/data/user/0/com.qin.agy.custom/files")
-        self.assertEqual(env["AGY_APPLICATION_ID"], "com.qin.agy.custom")
+        env = env_builder.build_process_env(app_id="io.github.ziyekaixuan.antigravity.custom")
+        self.assertEqual(env["HOME"], "/data/user/0/io.github.ziyekaixuan.antigravity.custom/files")
+        self.assertEqual(env["AGY_APPLICATION_ID"], "io.github.ziyekaixuan.antigravity.custom")
 
     def test_08_prefix_and_git_config(self):
-        env = env_builder.build_process_env(app_id="com.qin.agy")
-        self.assertEqual(env["PREFIX"], "/data/user/0/com.qin.agy/files/usr")
+        env = env_builder.build_process_env(app_id="io.github.ziyekaixuan.antigravity")
+        self.assertEqual(env["PREFIX"], "/data/user/0/io.github.ziyekaixuan.antigravity/files/usr")
         self.assertEqual(env["GIT_CONFIG_NOSYSTEM"], "1")
 
     def test_09_resolve_subpath_leading_slash(self):
-        sub1 = path_resolver.resolve_subpath("runtime", "bin/test", app_id="com.qin.agy")
-        sub2 = path_resolver.resolve_subpath("runtime", "/bin/test", app_id="com.qin.agy")
+        sub1 = path_resolver.resolve_subpath("runtime", "bin/test", app_id="io.github.ziyekaixuan.antigravity")
+        sub2 = path_resolver.resolve_subpath("runtime", "/bin/test", app_id="io.github.ziyekaixuan.antigravity")
         self.assertEqual(sub1, sub2)
-        self.assertEqual(sub2, "/data/user/0/com.qin.agy/files/runtime/bin/test")
+        self.assertEqual(sub2, "/data/user/0/io.github.ziyekaixuan.antigravity/files/runtime/bin/test")
 
 if __name__ == "__main__":
     unittest.main()

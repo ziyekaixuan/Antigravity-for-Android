@@ -1,4 +1,4 @@
-# OwnAgy
+# Antigravity
 
 **把 Antigravity 装进口袋，随时随地开工。**
 
@@ -12,7 +12,7 @@ Antigravity Android 客户端，搭载官方核心 2.34.0，全界面简体中�
 
 ## 项目简介
 
-**OwnAgy** 是 Antigravity Android 客户端，搭载官方核心 2.34.0，把完整的 AI 编程环境装进手机：对话、子代理、终端、文件操作、代码执行、图片生成，在 Android 上全部可用。包名 `com.qin.agy`，可与原版共存安装，互不影响。
+**Antigravity** 是 Antigravity Android 客户端，搭载官方核心 2.34.0，把完整的 AI 编程环境装进手机：对话、子代理、终端、文件操作、代码执行、图片生成，在 Android 上全部可用。包名 `io.github.ziyekaixuan.antigravity`，可与原版共存安装，互不影响。
 
 ### 项目入口
 
@@ -41,8 +41,8 @@ Antigravity Android 客户端，搭载官方核心 2.34.0，全界面简体中�
 
 | 版本 | 文件 | 说明 |
 | :--- | :--- | :--- |
-| **绕区版** | `OwnAgy-<版本>-region-bypass.apk` | 一般选这个 |
-| **标准版** | `OwnAgy-<版本>-standard.apk` | 保留官方全部校验 |
+| **绕区版** | `Antigravity-<版本>-region-bypass.apk` | 一般选这个 |
+| **标准版** | `Antigravity-<版本>-standard.apk` | 保留官方全部校验 |
 | 校验和 | `SHA256SUMS.txt` | 核对下载文件完整性 |
 
 ### 绕区版和标准版有什么区别
@@ -69,7 +69,7 @@ Antigravity Android 客户端，搭载官方核心 2.34.0，全界面简体中�
 
 如遇到可复现的异常或功能问题，请通过 [GitHub Issues](https://github.com/ziyekaixuan/Antigravity-for-Android/issues) 提交。建议附上：
 
-- OwnAgy 版本号。
+- Antigravity 版本号。
 - Android 版本、设备型号。
 - 具体复现步骤、预期结果、实际结果。
 - 必要时附诊断日志（长按图标 → 导出诊断日志）。
@@ -97,6 +97,6 @@ bash build.sh --region-bypass  # 绕区版 → dist/antigravity-region-bypass.ap
 
 ---
 
-**OwnAgy · 把 Antigravity 装进口袋。**
+**Antigravity · 把 Antigravity 装进口袋。**
 
-如果 OwnAgy 对你有帮助，欢迎点亮 Star、提交反馈。
+如果 Antigravity 对你有帮助，欢迎点亮 Star、提交反馈。

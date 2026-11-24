@@ -1,4 +1,4 @@
-#!/data/data/com.qin.agy/files/usr/bin/bash
+#!/data/data/io.github.ziyekaixuan.antigravity/files/usr/bin/bash
 # index.sh -- Packages index helpers.
 # Requires PKG_LIB, PKG_INDEX, deb_gt (version.sh).
 

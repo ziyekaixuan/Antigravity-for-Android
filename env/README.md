@@ -75,7 +75,7 @@ env/
 
 ### 在 Android 沙箱中的内存与存放位置
 
-应用启动时，Android 类 `com.qin.agy.install.EnvInstaller` 将资源解包到应用隔离的文件空间：
+应用启动时，Android 类 `io.github.ziyekaixuan.antigravity.install.EnvInstaller` 将资源解包到应用隔离的文件空间：
 - **`$HOME`**：`/data/user/<id>/<package_id>/files`（旧版 Android 上为 `/data/data/<package_id>/files`）。
 - **`$PREFIX`**：`$HOME/usr` — Bionic rootfs 的根。
 - **`$PREFIX/bin`**：可执行文件（`bash`、`sh`、`git`、`pkg`、`agy-daemon` 等）。
@@ -121,7 +121,7 @@ env/
 
 ## 3. Termux/Android 路径动态转换
 
-由于 Termux 包编译时硬编码了路径 `/data/data/com.termux/files/usr`，而 AGY 应用运行在任意上下文中（例如 `/data/user/0/com.qin.agy/files/usr` 或 `/data/user/10/com.qin.agy.dev/files/usr`），因此采用三级适配系统：
+由于 Termux 包编译时硬编码了路径 `/data/data/com.termux/files/usr`，而 AGY 应用运行在任意上下文中（例如 `/data/user/0/io.github.ziyekaixuan.antigravity/files/usr` 或 `/data/user/10/io.github.ziyekaixuan.antigravity.dev/files/usr`），因此采用三级适配系统：
 
 ### 重写层级
 ```
@@ -206,9 +206,9 @@ Antigravity 中共存两种不同的执行环境：
   修复了 `HOME` 路径的计算：
   此前错误地使用 `export HOME="${HOME:-/data/user/0/$(basename "$(dirname "$PREFIX")")/files}"`，导致形如 `/data/user/0/files/files` 的路径。
   已修正为标准且正确的形式：`export HOME="${HOME:-$(dirname "$PREFIX")}"`。
-- **Shebang 中的 `com.qin.agy`：**
+- **Shebang 中的 `io.github.ziyekaixuan.antigravity`：**
   在文件 `env/pkg/pkg`、`env/overlay/bin/agy-fix-paths`、`env/overlay/bin/agy-notify`、`env/overlay/bin/agy-upgrade` 中，首行 Shebang 为：
-  `#!/data/data/com.qin.agy/files/usr/bin/bash` 或 `#!/data/user/0/com.qin.agy/files/usr/bin/bash`。
+  `#!/data/data/io.github.ziyekaixuan.antigravity/files/usr/bin/bash` 或 `#!/data/user/0/io.github.ziyekaixuan.antigravity/files/usr/bin/bash`。
   `TermuxShebangRewriter` 会在安装 APK 时重写它们。
 
 ### 3. `pkg/pkg` 中桥生成的开销 [已修复 - 第一轮]
@@ -221,7 +221,7 @@ Antigravity 中共存两种不同的执行环境：
 
 ### 5. 路径规范化代码重复
 将 Termux 路径替换为当前 `$PREFIX` 的逻辑在 4 个独立位置重复：
-1. `com.qin.agy.install.TermuxPrefixRewriter` / `TermuxShebangRewriter`（Java）；
+1. `io.github.ziyekaixuan.antigravity.install.TermuxPrefixRewriter` / `TermuxShebangRewriter`（Java）；
 2. `env/pkg/lib/util.sh` -> 函数 `rewrite_prefix`（Bash/sed）；
 3. `env/overlay/bin/agy-fix-paths`（Bash/sed）；
 4. `env/bootstrap/patch-prefix.py`（Python）。

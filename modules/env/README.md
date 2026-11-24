@@ -136,12 +136,12 @@ modules/env/
 ## 4. 上下文与动态路径解析器 (`context/`)
 
 ### 4.1. `path_resolver.py`
-消除对包名的硬编码绑定（`com.qin.agy` vs `com.qin.agy.dev` vs 自定义构建）：
+消除对包名的硬编码绑定（`io.github.ziyekaixuan.antigravity` vs `io.github.ziyekaixuan.antigravity.dev` vs 自定义构建）：
 - `get_application_id() -> str`：按以下优先级确定包标识符：
   1. 环境变量 `AGY_APPLICATION_ID`
   2. 环境变量 `APPLICATION_ID`
-  3. 标志 `DEV_MODE == "1"`（返回 `com.qin.agy.dev`）
-  4. 默认：`com.qin.agy`
+  3. 标志 `DEV_MODE == "1"`（返回 `io.github.ziyekaixuan.antigravity.dev`）
+  4. 默认：`io.github.ziyekaixuan.antigravity`
 - `load_paths(custom_spec=None, app_id=None) -> Dict[str, str]`：从 `paths.json` 加载并插值路径，并通过 `os.path.abspath(os.path.expanduser(...))` 保证得到绝对路径。
 - `resolve_subpath(key: str, rel_path: str, custom_spec=None, app_id=None) -> str`：安全拼接子路径。为防止传入前导斜杠（`/bin/tool`）时重置根目录，会调用 `rel_path.lstrip("/")`。
 
@@ -211,8 +211,8 @@ def record_crash_snapshot(error_msg: str, dump_path: str, extra_context: Dict[st
 ### 7.1. IPC 客户端 (`bridge/client.py`)
 - `resolve_gateway_url() -> str`：
   1. 检查环境变量 `AGY_GATEWAY_URL`。
-  2. 在 `$HOME/logs/gateway.port`、`app_root/logs/gateway.port` 以及 `com.qin.agy.dev` / `com.qin.agy` 的标准目录中查找动态端口文件 `gateway.port`。
-  3. 如果文件不存在，则选择默认端口：`DEV_MODE=1` / `com.qin.agy.dev` 时为 `45171`，生产版为 `45170`。
+  2. 在 `$HOME/logs/gateway.port`、`app_root/logs/gateway.port` 以及 `io.github.ziyekaixuan.antigravity.dev` / `io.github.ziyekaixuan.antigravity` 的标准目录中查找动态端口文件 `gateway.port`。
+  3. 如果文件不存在，则选择默认端口：`DEV_MODE=1` / `io.github.ziyekaixuan.antigravity.dev` 时为 `45171`，生产版为 `45170`。
 - `send_command(command: str, payload: dict = None, gateway_url: str = None) -> dict`：
   - 向 `/gateway` 端点发送带有 JSON 信封 `{command, payload}` 的 HTTP POST 请求。
   - 自动 failover：主端口不可用时，尝试重连到备用端口（`45170` <-> `45171`）。
@@ -327,8 +327,8 @@ bash modules/env/tests/run_all.sh
 在对 `modules/env` 子系统源代码的深度审计中，发现并消除了关键架构缺陷、Android 路径错误与类型问题：
 
 ### 11.1. `preflight.py` 中的关键路径硬编码
-- **问题**：`run_preflight` 函数签名中的默认参数被硬编码：`app_root: str = "/data/user/0/com.qin.agy/files"`。
-- **后果**：在调试构建（`com.qin.agy.dev`）或任何自定义包中，无参调用 `run_preflight()` 会检查不存在的生产包 `com.qin.agy` 目录。结果 `os.path.exists()` 返回 `False`，`free_mb = 0`，预检器无条件报告错误 `ok: False`，阻塞核心启动。
+- **问题**：`run_preflight` 函数签名中的默认参数被硬编码：`app_root: str = "/data/user/0/io.github.ziyekaixuan.antigravity/files"`。
+- **后果**：在调试构建（`io.github.ziyekaixuan.antigravity.dev`）或任何自定义包中，无参调用 `run_preflight()` 会检查不存在的生产包 `io.github.ziyekaixuan.antigravity` 目录。结果 `os.path.exists()` 返回 `False`，`free_mb = 0`，预检器无条件报告错误 `ok: False`，阻塞核心启动。
 - **修复**：参数改为 `app_root: Optional[str] = None`。增加了通过 `path_resolver.load_paths()["app_root"]` -> `$HOME` -> fallback 的级联动态目录解析。
 
 ### 11.2. `bridge/commands.py` 中的类型错误 `NameError: Optional`
@@ -337,18 +337,18 @@ bash modules/env/tests/run_all.sh
 - **修复**：增加了显式导入 `from typing import Dict, Any, Optional`，并实现了缺失的方法 `clipboard_get()`、`cancel_notify()` 与 `system_info()`。
 
 ### 11.3. `cmd/runner.py` 中的日志抑制与硬编码
-- **问题**：`LOG_DIR` 路径被硬编码为 `/data/user/0/com.qin.agy/files/logs`。
-- **后果**：在 `com.qin.agy.dev` 环境中工作时，创建目录或写入 `commands.jsonl` 会因拒绝访问（`PermissionDenied`）失败，而该错误被 `except Exception: pass` 块静默吞掉。通过 `runner.py` 启动的所有命令都会丢失审计历史。
+- **问题**：`LOG_DIR` 路径被硬编码为 `/data/user/0/io.github.ziyekaixuan.antigravity/files/logs`。
+- **后果**：在 `io.github.ziyekaixuan.antigravity.dev` 环境中工作时，创建目录或写入 `commands.jsonl` 会因拒绝访问（`PermissionDenied`）失败，而该错误被 `except Exception: pass` 块静默吞掉。通过 `runner.py` 启动的所有命令都会丢失审计历史。
 - **修复**：实现了 `_resolve_log_dir()` 函数，优先使用 `$HOME/logs` 与 `path_resolver`。
 
 ### 11.4. `cli/agy_logs.py` 中日志与崩溃转储不可用
-- **问题**：`commands.jsonl`、`logs/core.log` 文件与 `logs/crashes` 目录的路径被硬编码绑定到 `com.qin.agy`。同时 `read_file_fallback` 检查的路径是 `~/.gemini/logs/core.log`，而实际文件创建在 `$HOME/logs/core.log`。
+- **问题**：`commands.jsonl`、`logs/core.log` 文件与 `logs/crashes` 目录的路径被硬编码绑定到 `io.github.ziyekaixuan.antigravity`。同时 `read_file_fallback` 检查的路径是 `~/.gemini/logs/core.log`，而实际文件创建在 `$HOME/logs/core.log`。
 - **后果**：如果 Android Gateway 离线，`agy_logs.py` 命令无法发现任何日志文件，只输出空白。
 - **修复**：引入 `_find_commands_log()` 函数，路径与动态解析器合并，并在 `core.log` 的候选列表中增加了 `$HOME/logs/core.log`。
 
 ### 11.5. Gateway 端口查找逻辑重复
 - **问题**：`bridge/client.py` 中的 `resolve_gateway_url()` 与 `cli/agy_logs.py` 中的 `get_gateway_base()` 包含完全相同的重复代码，且两个函数都只检查 `gateway.port` 的静态路径。
-- **修复**：`agy_logs.py` 现在导入 `bridge.client` 中的集中式方法，而端口解析器本身会检查 `$HOME/logs/gateway.port` 与环境标志 `AGY_APPLICATION_ID == "com.qin.agy.dev"`。
+- **修复**：`agy_logs.py` 现在导入 `bridge.client` 中的集中式方法，而端口解析器本身会检查 `$HOME/logs/gateway.port` 与环境标志 `AGY_APPLICATION_ID == "io.github.ziyekaixuan.antigravity.dev"`。
 
 ### 11.6. `env_builder.py` 中缺少 `$PREFIX` 与 `$GIT_CONFIG_NOSYSTEM`
 - **问题**：变量 `PREFIX`（`/data/user/0/{package}/files/usr`）是 Android userland（Termux / AGY）中的关键环境变量。尽管 `paths.json` 中存在 `"prefix"` 键，`env_builder.py` 却没有设置 `PREFIX`。同时也缺少标志 `GIT_CONFIG_NOSYSTEM=1`。

@@ -1,4 +1,4 @@
-#!/data/data/com.qin.agy/files/usr/bin/bash
+#!/data/data/io.github.ziyekaixuan.antigravity/files/usr/bin/bash
 # deb.sh -- read .deb (ar archive) + extract members. No `ar` dependency.
 # Uses dd/tail/head for ar, tar for payloads, and xz/gzip/zstd/bzip2 by suffix.
 

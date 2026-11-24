@@ -1,4 +1,4 @@
-#!/data/data/com.qin.agy/files/usr/bin/bash
+#!/data/data/io.github.ziyekaixuan.antigravity/files/usr/bin/bash
 # util.sh -- shared helpers for pkg.
 
 PKG_VERSION="0.1.0"

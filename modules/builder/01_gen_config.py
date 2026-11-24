@@ -96,7 +96,7 @@ def main():
     sync_agents_docs(env)
 
     # BuildConfig always lives in the com.agy code package, even though the
-    # install applicationId (PKG) is com.qin.agy: all Java sources import
+    # install applicationId (PKG) is io.github.ziyekaixuan.antigravity: all Java sources import
     # com.agy.BuildConfig, so the generated class must not follow PKG.
     pkg_dir = os.path.join(build_dir, "gen", "com", "agy")
     res_values_dir = os.path.join(build_dir, "res", "values")

@@ -163,11 +163,11 @@
 1. **Android 托盘通知器 (`outputs/notify_tray.sh`)**
    - 从 `stdin` 接收 JSON 事件。
    - 提取事件名与消息文本。
-   - 通过 `agy-notify` 工具或 `am broadcast -a com.qin.agy.ACTION_NOTIFY` 发送 Android 系统通知。
+   - 通过 `agy-notify` 工具或 `am broadcast -a io.github.ziyekaixuan.antigravity.ACTION_NOTIFY` 发送 Android 系统通知。
 
 2. **Android 浏览器 Intent 发射器 (`outputs/broadcast_emitter.sh`)**
    - 接收事件 `core.url.open`。
-   - 提取 `url` 字段并发送 Android Broadcast `com.qin.agy.ACTION_OPEN_URL`，以在外部浏览器或 Custom Tabs 中打开。
+   - 提取 `url` 字段并发送 Android Broadcast `io.github.ziyekaixuan.antigravity.ACTION_OPEN_URL`，以在外部浏览器或 Custom Tabs 中打开。
 
 3. **持久化 JSONL 日志器 (`outputs/file_sink.py`)**
    - 将每个传入事件写入 append-only 日志文件（默认 `~/.gemini/events.jsonl` 或变量 `AGY_EVENT_LOG`）。

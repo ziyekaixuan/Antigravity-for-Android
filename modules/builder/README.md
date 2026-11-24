@@ -76,11 +76,11 @@ flowchart TD
 - **输出**：
   - `build/gen/com/qin/agy/BuildConfig.java`：静态字段 `PORT`、`GATEWAY_PORT`、`CORE_VERSION`、`APP_VERSION_NAME`、`DEBUG`。
   - `build/res/values/gen.xml`：供 Android framework 使用的字符串和整数 XML 资源（生成到构建树中，避免污染仓库和 `git status`）。
-  - `build/AndroidManifest.xml`：替换 `${applicationId}`，dev 模式下将包名改为 `com.qin.agy.dev`，设置 `android:debuggable="true"`，并隔离 `permission.INTERNAL_BROADCAST`。
+  - `build/AndroidManifest.xml`：替换 `${applicationId}`，dev 模式下将包名改为 `io.github.ziyekaixuan.antigravity.dev`，设置 `android:debuggable="true"`，并隔离 `permission.INTERNAL_BROADCAST`。
 
 ### 步骤 02：生成 R.java (`02_r_java.sh`)
 - 运行 `aapt package -m -J <gen_dir>` 解析资源并生成数字 ID，使用 overlay `-S "$BUILD_DIR/res" -S "$RES_DIR" --auto-add-overlay`。
-- 检查目标清单中的包名：如果包名等于基础包名 `com.qin.agy`，则跳过第二次重复的 `aapt` 运行。如果包名不同（例如 `com.qin.agy.dev`），则通过 `--custom-package com.qin.agy` 再生成一个兼容旧调用的回退 `com.qin.agy.R`。
+- 检查目标清单中的包名：如果包名等于基础包名 `io.github.ziyekaixuan.antigravity`，则跳过第二次重复的 `aapt` 运行。如果包名不同（例如 `io.github.ziyekaixuan.antigravity.dev`），则通过 `--custom-package io.github.ziyekaixuan.antigravity` 再生成一个兼容旧调用的回退 `io.github.ziyekaixuan.antigravity.R`。
 
 ### 步骤 03：编译 Java (`03_compile_java.sh`)
 - 将应用源码和生成类（`BuildConfig`、`R`）的列表收集到参数文件 `@$BUILD_DIR/java_sources.txt` 中，彻底消除 `ARG_MAX`（`Argument list too long`）错误的风险。
@@ -160,8 +160,8 @@ bash modules/builder/tests/run_all.sh
 - **修复**：将生成位置移到构建树 `$BUILD_DIR/res/values/gen.xml`。在 `02_r_java.sh` 和 `06_package.sh` 中添加了资源 overlay 支持 `-S "$BUILD_DIR/res" -S "$RES_DIR" --auto-add-overlay`，使生成值动态代入，Git 工作树保持干净。
 
 ### 3. `02_r_java.sh` 中的双重 `aapt` 运行（已修复）
-- **问题**：发布模式下 `aapt` 以相同参数（`com.qin.agy`）运行两次，造成多余的 CPU 负载。
-- **修复**：在 `02_r_java.sh` 中添加了清单检查（`PKG=$(sed -n -E 's/.*package="([^"]+)".*/\1/p' "$MANIFEST" | head -n 1)`）。如果目标包已等于 `com.qin.agy`，则跳过重复运行。如果包名不同（例如 `com.qin.agy.dev`），则生成两个包（`com.qin.agy.dev.R` 和兼容回退 `com.qin.agy.R`）。
+- **问题**：发布模式下 `aapt` 以相同参数（`io.github.ziyekaixuan.antigravity`）运行两次，造成多余的 CPU 负载。
+- **修复**：在 `02_r_java.sh` 中添加了清单检查（`PKG=$(sed -n -E 's/.*package="([^"]+)".*/\1/p' "$MANIFEST" | head -n 1)`）。如果目标包已等于 `io.github.ziyekaixuan.antigravity`，则跳过重复运行。如果包名不同（例如 `io.github.ziyekaixuan.antigravity.dev`），则生成两个包（`io.github.ziyekaixuan.antigravity.dev.R` 和兼容回退 `io.github.ziyekaixuan.antigravity.R`）。
 
 ### 4. 命令行溢出风险（`ARG_MAX`）（已修复）
 - **问题**：在 `03_compile_java.sh` 和 `04_dex.sh` 中，所有源文件和类都通过 bash 数组 `${JAVA_SOURCES[@]}` 和 `${CLASS_FILES[@]}` 代入。随着代码库扩大，这会触发 Linux 内核系统错误 `Argument list too long`（`E2BIG`）。

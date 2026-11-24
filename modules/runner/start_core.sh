@@ -6,15 +6,15 @@ set -euo pipefail
 RUNNER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULES_DIR="$(cd "$RUNNER_DIR/.." && pwd)"
 
-# Dynamic APP_ID detection (com.qin.agy vs com.qin.agy.dev)
+# Dynamic APP_ID detection (io.github.ziyekaixuan.antigravity vs io.github.ziyekaixuan.antigravity.dev)
 if [ -n "${AGY_APPLICATION_ID:-}" ]; then
     APP_ID="$AGY_APPLICATION_ID"
 elif [ -n "${HOME:-}" ] && [[ "$HOME" =~ /data/user/0/([^/]+) ]]; then
     APP_ID="${BASH_REMATCH[1]}"
-elif [ -d "/data/user/0/com.qin.agy.dev" ]; then
-    APP_ID="com.qin.agy.dev"
+elif [ -d "/data/user/0/io.github.ziyekaixuan.antigravity.dev" ]; then
+    APP_ID="io.github.ziyekaixuan.antigravity.dev"
 else
-    APP_ID="com.qin.agy"
+    APP_ID="io.github.ziyekaixuan.antigravity"
 fi
 
 APP_BASE="/data/user/0/$APP_ID"

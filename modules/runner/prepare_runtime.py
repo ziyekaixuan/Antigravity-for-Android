@@ -25,7 +25,7 @@ import pipeline
 # with the failfast group skipped (Go 1.28 restructured its signatures).
 TARGET_SHA_FULL = "5c0a76ea4ae92b0f4de38148f9792b12d39f69764852a653b6f5860b99314438"
 TARGET_SHA_NO_BYPASS = "0fae7fa32d313c0f8c5a760a0303681f3f19ec226f3e48f5eae84a6a599bbeff"
-DEFAULT_DEST = "/data/user/0/com.qin.agy/files/standalone_runtime"
+DEFAULT_DEST = "/data/user/0/io.github.ziyekaixuan.antigravity/files/standalone_runtime"
 
 
 def sha256_file(path: str) -> str:
@@ -48,7 +48,7 @@ def prepare(dest_runtime_dir: str = DEFAULT_DEST, no_bypass: bool = False) -> bo
     archive_path = os.path.join(core_dir, "pristine", "language_server.tar.gz")
 
     tmp_dir = tempfile.mkdtemp(prefix="agy_staging_")
-    app_base = "/data/user/0/com.qin.agy.dev" if os.path.exists("/data/user/0/com.qin.agy.dev") and os.access("/data/user/0/com.qin.agy.dev", os.W_OK) else "/data/user/0/com.qin.agy"
+    app_base = "/data/user/0/io.github.ziyekaixuan.antigravity.dev" if os.path.exists("/data/user/0/io.github.ziyekaixuan.antigravity.dev") and os.access("/data/user/0/io.github.ziyekaixuan.antigravity.dev", os.W_OK) else "/data/user/0/io.github.ziyekaixuan.antigravity"
     cache_dir = os.environ.get("AGY_CACHE_DIR", os.path.join(app_base, "cache") if os.access(app_base, os.W_OK) else os.path.join(tempfile.gettempdir(), "agy_cache"))
     os.makedirs(cache_dir, exist_ok=True)
     target_sha = TARGET_SHA_NO_BYPASS if no_bypass else TARGET_SHA_FULL

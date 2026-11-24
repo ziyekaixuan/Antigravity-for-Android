@@ -32,8 +32,8 @@ def _candidate_log_dirs():
         pass
 
     dirs.extend([
-        "/data/user/0/com.qin.agy.dev/files/logs",
-        "/data/user/0/com.qin.agy/files/logs",
+        "/data/user/0/io.github.ziyekaixuan.antigravity.dev/files/logs",
+        "/data/user/0/io.github.ziyekaixuan.antigravity/files/logs",
     ])
     return dirs
 
@@ -55,8 +55,8 @@ def _read_log_file(name: str):
 def _is_dev() -> bool:
     return (
         os.environ.get("DEV_MODE") == "1"
-        or os.environ.get("AGY_APPLICATION_ID") == "com.qin.agy.dev"
-        or "com.qin.agy.dev" in (os.environ.get("HOME") or "")
+        or os.environ.get("AGY_APPLICATION_ID") == "io.github.ziyekaixuan.antigravity.dev"
+        or "io.github.ziyekaixuan.antigravity.dev" in (os.environ.get("HOME") or "")
     )
 
 

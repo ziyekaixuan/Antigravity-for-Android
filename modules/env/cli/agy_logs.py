@@ -32,8 +32,8 @@ def _fallback_gateway_token():
     if home:
         candidates.append(os.path.join(home, "logs", "gateway.token"))
     candidates.extend([
-        "/data/user/0/com.qin.agy.dev/files/logs/gateway.token",
-        "/data/user/0/com.qin.agy/files/logs/gateway.token",
+        "/data/user/0/io.github.ziyekaixuan.antigravity.dev/files/logs/gateway.token",
+        "/data/user/0/io.github.ziyekaixuan.antigravity/files/logs/gateway.token",
     ])
     for pfile in candidates:
         if os.path.isfile(pfile):
@@ -63,8 +63,8 @@ def get_gateway_base():
     if home:
         candidates.append(os.path.join(home, "logs", "gateway.port"))
     candidates.extend([
-        "/data/user/0/com.qin.agy.dev/files/logs/gateway.port",
-        "/data/user/0/com.qin.agy/files/logs/gateway.port"
+        "/data/user/0/io.github.ziyekaixuan.antigravity.dev/files/logs/gateway.port",
+        "/data/user/0/io.github.ziyekaixuan.antigravity/files/logs/gateway.port"
     ])
     for pfile in candidates:
         if os.path.isfile(pfile):
@@ -75,7 +75,7 @@ def get_gateway_base():
                         return f"http://127.0.0.1:{p}/gateway"
             except Exception:
                 pass
-    is_dev = os.environ.get("DEV_MODE") == "1" or os.environ.get("AGY_APPLICATION_ID") == "com.qin.agy.dev"
+    is_dev = os.environ.get("DEV_MODE") == "1" or os.environ.get("AGY_APPLICATION_ID") == "io.github.ziyekaixuan.antigravity.dev"
     # Fallback ports must match GATEWAY_PORT / GATEWAY_PORT_DEV in config/app.env.
     return "http://127.0.0.1:45171/gateway" if is_dev else "http://127.0.0.1:45170/gateway"
 
@@ -120,13 +120,13 @@ def _find_commands_log():
     except Exception:
         pass
     candidates.extend([
-        "/data/user/0/com.qin.agy.dev/files/logs/commands.jsonl",
-        "/data/user/0/com.qin.agy/files/logs/commands.jsonl"
+        "/data/user/0/io.github.ziyekaixuan.antigravity.dev/files/logs/commands.jsonl",
+        "/data/user/0/io.github.ziyekaixuan.antigravity/files/logs/commands.jsonl"
     ])
     for p in candidates:
         if os.path.isfile(p):
             return p
-    return candidates[0] if candidates else "/data/user/0/com.qin.agy/files/logs/commands.jsonl"
+    return candidates[0] if candidates else "/data/user/0/io.github.ziyekaixuan.antigravity/files/logs/commands.jsonl"
 
 
 def read_file_fallback(max_lines=50):
@@ -144,9 +144,9 @@ def read_file_fallback(max_lines=50):
         pass
     candidates.extend([
         os.path.expanduser("~/.gemini/logs/core.log"),
-        "/data/user/0/com.qin.agy.dev/files/logs/core.log",
-        "/data/user/0/com.qin.agy/files/logs/core.log",
-        "/data/user/0/com.qin.agy/files/standalone_runtime/core_output.log"
+        "/data/user/0/io.github.ziyekaixuan.antigravity.dev/files/logs/core.log",
+        "/data/user/0/io.github.ziyekaixuan.antigravity/files/logs/core.log",
+        "/data/user/0/io.github.ziyekaixuan.antigravity/files/standalone_runtime/core_output.log"
     ])
     for path in candidates:
         if os.path.isfile(path):
@@ -196,8 +196,8 @@ def show_crash(as_json=False):
         except Exception:
             pass
         crashes_dirs.extend([
-            "/data/user/0/com.qin.agy.dev/files/logs/crashes",
-            "/data/user/0/com.qin.agy/files/logs/crashes"
+            "/data/user/0/io.github.ziyekaixuan.antigravity.dev/files/logs/crashes",
+            "/data/user/0/io.github.ziyekaixuan.antigravity/files/logs/crashes"
         ])
         for crashes_dir in crashes_dirs:
             if os.path.isdir(crashes_dir):

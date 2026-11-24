@@ -67,7 +67,7 @@ graph TD
 
 ## 2. 关键子系统
 
-### 2.1. 后台服务与核心管理（`com.qin.agy.core`）
+### 2.1. 后台服务与核心管理（`io.github.ziyekaixuan.antigravity.core`）
 
 系统核心（`language_server`）编译为 Linux/Glibc 程序，通过自定义加载器 `libloader.so` 并借助 LSE 指令模拟（`liblse_compat.so`）在 Android 环境中运行。
 
@@ -90,9 +90,9 @@ graph TD
   - 解决 Google OAuth 授权拦截问题（Google 会阻止在内置 WebView 内授权）。
   - 实时读取 `language_server` 的输出行，识别 `AGY_OPEN_URL=`、`ANTIGRAVITY_OPEN_URL:` 标记和 `accounts.google.com` 链接。
   - 通过 `CustomTabLauncher` 将用户重定向到默认外部浏览器。
-  - 同时监听受保护广播 `com.qin.agy.ACTION_OPEN_URL`。
+  - 同时监听受保护广播 `io.github.ziyekaixuan.antigravity.ACTION_OPEN_URL`。
 
-### 2.2. WebView、UI 与应用加载（`com.qin.agy.ui`）
+### 2.2. WebView、UI 与应用加载（`io.github.ziyekaixuan.antigravity.ui`）
 
 - **两阶段启动方案（Splash 与 Ready 流程）**：
   1. `MainActivity` 以原生 Canvas 启动屏（`NativeSplashDotsView`）启动，不初始化沉重的 Chromium WebView 来播放三点动画（节省约 40 MB 内存）。
@@ -109,7 +109,7 @@ graph TD
   - 处理普通文件和 Base64 Blob（`saveBlob`）的下载。
   - 支持通过 Storage Access Framework（SAF）选择文件和文件夹，并保存持久权限（`takePersistableUriPermission`）。
 
-### 2.3. 系统网关（`com.qin.agy.gateway`）
+### 2.3. 系统网关（`io.github.ziyekaixuan.antigravity.gateway`）
 
 内置高性能 HTTP 服务器（`SystemGatewayServer`），严格监听 `127.0.0.1:45171`（占用时自动回退到 `+2` 端口）。端口号保存在 `files/logs/gateway.port`。
 
@@ -130,14 +130,14 @@ graph TD
 | `/gateway/commands` | `SystemGatewayServer` | 网关已执行命令及其状态的历史记录。 |
 | `/gateway/crash` | `SystemGatewayServer` | 核心最近一次崩溃的诊断快照。 |
 
-### 2.4. 安全与 JavaScript Bridge（`com.qin.agy.bridge`）
+### 2.4. 安全与 JavaScript Bridge（`io.github.ziyekaixuan.antigravity.bridge`）
 
 `AndroidBridge` 类为前端提供最小化、严格隔离的接口（`@JavascriptInterface`）。
 
 - **防范第三方框架：** 危险操作（`onUiReady`、`onUiError`、`saveBlob`）要求传入加密令牌 `blobBridgeToken`，该令牌仅受信任的顶层文档知晓。令牌比较使用 `MessageDigest.isEqual`，以防时序攻击。
 - **隔离：** `AndroidBridge` 接口中排除了 Shell 执行、发送任意通知和直接访问 Shizuku 的能力。所有特权操作都移交到本地网关 `SystemGatewayServer`。
 
-### 2.5. 动态图标与主题（`com.qin.agy.theme`）
+### 2.5. 动态图标与主题（`io.github.ziyekaixuan.antigravity.theme`）
 
 - **Duolingo 风格启动器架构模式：**
   清单中没有使用 `activity-alias`，而是声明了两个真实的 Activity：
@@ -161,16 +161,16 @@ graph TD
 
 ### 3.2. 死代码（Dead Code）
 以下类已从项目中删除（没有任何组件使用）：
-- `com.qin.agy.bridge.ShellBridge`（已删除）
-- `com.qin.agy.bridge.ExternalUrlBridge`（已删除）
-- `com.qin.agy.bridge.NotificationBridge`（已删除）
-- `com.qin.agy.install.ChmodRunner`（已删除）
-- `com.qin.agy.oauth.AuthReloader`（已删除）
-- `com.qin.agy.oauth.AuthTokenPoller`（已删除）
-- `com.qin.agy.ui.lifecycle.DeepLinkForwarder`（已删除）
-- `com.qin.agy.ui.splash.SplashLoadingHtml`（已删除）
-- `com.qin.agy.util.LoopbackHost`（已删除）
-- `com.qin.agy.util.PackageInspector`（已删除）
+- `io.github.ziyekaixuan.antigravity.bridge.ShellBridge`（已删除）
+- `io.github.ziyekaixuan.antigravity.bridge.ExternalUrlBridge`（已删除）
+- `io.github.ziyekaixuan.antigravity.bridge.NotificationBridge`（已删除）
+- `io.github.ziyekaixuan.antigravity.install.ChmodRunner`（已删除）
+- `io.github.ziyekaixuan.antigravity.oauth.AuthReloader`（已删除）
+- `io.github.ziyekaixuan.antigravity.oauth.AuthTokenPoller`（已删除）
+- `io.github.ziyekaixuan.antigravity.ui.lifecycle.DeepLinkForwarder`（已删除）
+- `io.github.ziyekaixuan.antigravity.ui.splash.SplashLoadingHtml`（已删除）
+- `io.github.ziyekaixuan.antigravity.util.LoopbackHost`（已删除）
+- `io.github.ziyekaixuan.antigravity.util.PackageInspector`（已删除）
 
 ### 3.3. 路径与 IPC 补丁
 - **`ExecHandler` 与 `rish` 的集成（已修复）：** `ExecHandler` 实现了 `rish` 二进制文件的自动路径搜索（检查 `$PREFIX/bin/rish`、`files/runtime/bin/rish`），为 Shizuku 授权强制传递 `RISH_APPLICATION_ID`（`context.getPackageName()`），并重置可能冲突的 `LD_LIBRARY_PATH`。

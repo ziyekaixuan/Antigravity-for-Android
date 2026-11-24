@@ -74,7 +74,7 @@ class TestBuilder(unittest.TestCase):
         android_jar = os.path.join(tools_dir, "android.jar")
         res_dir = os.path.join(project_root, "app", "src", "main", "res")
 
-        # Test release mode (com.qin.agy): manifest package differs from the
+        # Test release mode (io.github.ziyekaixuan.antigravity): manifest package differs from the
         # com.agy code package, so the fallback com.agy.R is generated too.
         build_dir = os.path.join(self.tmp_dir, "build_rel")
         cmd_cfg = [sys.executable, os.path.join(BUILDER_DIR, "01_gen_config.py"), build_dir]
@@ -90,7 +90,7 @@ class TestBuilder(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(gen_dir, "com", "agy", "R.java")))
         self.assertTrue(os.path.isfile(os.path.join(gen_dir, "com", "qin", "agy", "R.java")))
 
-        # Test dev mode (com.qin.agy.dev) -> generates both com.qin.agy.dev.R and fallback com.agy.R
+        # Test dev mode (io.github.ziyekaixuan.antigravity.dev) -> generates both io.github.ziyekaixuan.antigravity.dev.R and fallback com.agy.R
         build_dir_dev = os.path.join(self.tmp_dir, "build_dev")
         subprocess.run(cmd_cfg[:2] + [build_dir_dev], check=True, cwd=project_root, env={**os.environ, "DEV_MODE": "1"})
         gen_dir_dev = os.path.join(build_dir_dev, "gen")
