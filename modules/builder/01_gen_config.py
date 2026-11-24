@@ -30,26 +30,70 @@ def java_string(value):
     return '"' + escaped + '"'
 
 
+REQUIRED_KEYS = (
+    "PKG", "PKG_DEV", "PORT", "PORT_DEV", "GATEWAY_PORT", "GATEWAY_PORT_DEV",
+    "CORE_VERSION", "APP_VERSION_NAME", "APP_VERSION_CODE", "OAUTH_SCHEME",
+    "APP_NAME", "APP_NAME_DEV", "MIN_API", "TARGET_SDK",
+)
+
+
+def require(env, key):
+    """config/app.env is the single source of truth: a missing key must fail
+    the build loudly instead of silently falling back to a stale default."""
+    value = env.get(key)
+    if value is None or value == "":
+        raise SystemExit(f"[ERROR] config/app.env is missing required key: {key}")
+    return value
+
+
+def sync_agents_docs(env):
+    """Copy config/AGENTS.md (single source) to the two build-time locations
+    that used to hold stale copies, after verifying the package name and
+    ports mentioned in it match config/app.env."""
+    src = os.path.join(PROJECT_ROOT, "config", "AGENTS.md")
+    with open(src, "r", encoding="utf-8") as f:
+        content = f.read()
+    for key in ("PKG", "PORT", "PORT_DEV"):
+        if env[key] not in content:
+            raise SystemExit(
+                f"[ERROR] config/AGENTS.md does not mention {key}={env[key]} "
+                f"from config/app.env; update the doc or the env file.")
+    targets = (
+        os.path.join(PROJECT_ROOT, "modules", "core", "seed", "AGENTS.md"),
+        os.path.join(PROJECT_ROOT, "env", "overlay", "etc", "antigravity", "AGENTS.md"),
+    )
+    for target in targets:
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"[OK] Synced AGENTS.md -> {target}")
+
+
 def main():
     build_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(PROJECT_ROOT, "build")
     env_file = os.path.join(PROJECT_ROOT, "config", "app.env")
     env = parse_env(env_file)
 
+    for key in REQUIRED_KEYS:
+        require(env, key)
+
     is_dev = os.environ.get("DEV_MODE") == "1"
 
-    pkg_base = env.get("PKG", "com.agy")
-    app_id = env.get("PKG_DEV", "com.agy.dev") if is_dev else pkg_base
-    port = env.get("PORT_DEV", "45158") if is_dev else env.get("PORT", "45157")
-    port_dev = env.get("PORT_DEV", "45158")
-    gw_port = env.get("GATEWAY_PORT_DEV", "45161") if is_dev else env.get("GATEWAY_PORT", "45160")
-    core_version = env.get("CORE_VERSION", "2.11.0")
-    app_version_name = env.get("APP_VERSION_NAME", "2.4.1")
-    app_version_code = env.get("APP_VERSION_CODE", "17")
-    oauth_scheme = env.get("OAUTH_SCHEME", "antigravity")
-    app_name = env.get("APP_NAME_DEV", "Antigravity Dev") if is_dev else env.get("APP_NAME", "Antigravity")
-    min_api = env.get("MIN_API", "24")
-    target_sdk = env.get("TARGET_SDK", "28")
+    pkg_base = env["PKG"]
+    app_id = env["PKG_DEV"] if is_dev else pkg_base
+    port = env["PORT_DEV"] if is_dev else env["PORT"]
+    port_dev = env["PORT_DEV"]
+    gw_port = env["GATEWAY_PORT_DEV"] if is_dev else env["GATEWAY_PORT"]
+    core_version = env["CORE_VERSION"]
+    app_version_name = env["APP_VERSION_NAME"]
+    app_version_code = env["APP_VERSION_CODE"]
+    oauth_scheme = env["OAUTH_SCHEME"]
+    app_name = env["APP_NAME_DEV"] if is_dev else env["APP_NAME"]
+    min_api = env["MIN_API"]
+    target_sdk = env["TARGET_SDK"]
     is_debug = "true" if is_dev else "false"
+
+    sync_agents_docs(env)
 
     # BuildConfig always lives in the com.agy code package, even though the
     # install applicationId (PKG) is com.qin.agy: all Java sources import
@@ -101,10 +145,10 @@ def main():
     content = re.sub(r'android:versionCode="[^"]+"', f'android:versionCode="{app_version_code}"', content)
 
     if is_dev:
-        content = content.replace('package="com.agy"', 'package="com.agy.dev"')
-        content = content.replace('com.agy.permission.INTERNAL_BROADCAST', 'com.agy.dev.permission.INTERNAL_BROADCAST')
-        content = content.replace('<application', '<application android:debuggable="true"')
-        print(f"[*] Configured DEV manifest: package=com.agy.dev, debuggable=true")
+        # NOTE: package and permission were already set to the dev applicationId
+        # by the ${applicationId} substitution above; no further replaces needed.
+        content = content.replace('<application', '<application android:debuggable="true"', 1)
+        print(f"[*] Configured DEV manifest: package={app_id}, debuggable=true")
 
     with open(target_manifest, "w", encoding="utf-8") as f:
         f.write(content)

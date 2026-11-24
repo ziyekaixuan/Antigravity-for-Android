@@ -6,6 +6,11 @@ cache/
 *.dex
 *.class
 
+# Generated at build time (do not commit)
+web/generated/
+modules/core/seed/AGENTS.md
+env/overlay/etc/antigravity/AGENTS.md
+
 # Archives and binaries
 *.tar
 *.tar.gz

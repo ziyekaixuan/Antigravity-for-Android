@@ -1,15 +1,15 @@
-# Модуль сборщика APK: `modules/builder`
+# APK 构建器模块：`modules/builder`
 
-> Автономный конвейер сборки Android APK без Gradle и Android Studio.
-> Оптимизирован для нативного выполнения непосредственно в окружении Android (ARM64 / Linux).
+> 无需 Gradle 和 Android Studio 的自主 Android APK 构建流水线。
+> 针对在 Android 环境（ARM64 / Linux）中原生直接运行进行了优化。
 
 ---
 
-## 1. Обзор архитектуры
+## 1. 架构概览
 
-Сборка Antigravity APK выполняется полностью независимо от тяжелых систем сборки (Gradle, AGP, Groovy/Kotlin daemon). Оркестратор [`build_apk.sh`](build_apk.sh) вызывает цепочку атомарных скриптов, напрямую управляя низкоуровневыми бинарными утилитами Android SDK (`aapt`, `javac`, `d8`/`r8`, `zipalign`, `apksigner`) и специализированными Python-утилитами.
+Antigravity APK 的构建完全独立于重量级构建系统（Gradle、AGP、Groovy/Kotlin daemon）。编排器 [`build_apk.sh`](build_apk.sh) 调用一串原子脚本，直接操控 Android SDK 的底层二进制工具（`aapt`、`javac`、`d8`/`r8`、`zipalign`、`apksigner`）以及专用的 Python 工具。
 
-### Схема конвейера (Pipeline Diagram)
+### 流水线示意图 (Pipeline Diagram)
 
 ```mermaid
 flowchart TD
@@ -53,134 +53,134 @@ flowchart TD
 
 ---
 
-## 2. Этапы конвейера сборки (Build Stages)
+## 2. 构建流水线阶段 (Build Stages)
 
-| Этап | Скрипт | Главный инструмент | Входы | Выходы | Назначение |
+| 阶段 | 脚本 | 主要工具 | 输入 | 输出 | 用途 |
 |---|---|---|---|---|---|
-| **01** | [`01_gen_config.py`](01_gen_config.py) | Python 3 | `config/app.env`, `AndroidManifest.xml` | `build/gen/**/BuildConfig.java`, `build/res/values/gen.xml`, `build/AndroidManifest.xml` | Генерация констант, портов и dev-манифеста в build-дерево (без загрязнения git) |
-| **02** | [`02_r_java.sh`](02_r_java.sh) | `aapt` | `AndroidManifest.xml`, `res/`, `build/res/`, `android.jar` | `build/gen/**/R.java` | Компиляция идентификаторов ресурсов с оверлеем и пропуском дубля в релизе |
-| **03** | [`03_compile_java.sh`](03_compile_java.sh) | `javac` | `@build/java_sources.txt`, `android.jar` | `build/obj/**/*.class` | Компиляция Java-исходников через аргументный файл (защита от `ARG_MAX`) |
-| **04** | [`04_dex.sh`](04_dex.sh) | `D8` (`tools/r8.jar`) | `@build/class_files.txt`, `android.jar` | `build/dex/classes.dex` | Трансляция Java-байткода в DEX через аргументный файл D8 без переполнения CLI |
-| **05** | [`05_stage_assets.py`](05_stage_assets.py) | Python 3 + `modules/runner` | Ядро рантайма, `web/`, `env/dist/env` | `build/staging/assets/` | Сборка и верификация ассетов (runtime, web, env) |
-| **06** | [`06_package.sh`](06_package.sh) | `aapt` + `zipfile` | Ресурсы + оверлей `build/res`, манифест, `classes.dex`, `staging/assets/` | `build/unaligned.apk` | Создание базового APK с оверлеем и инъекция dex и ассетов |
-| **07** | [`align.py`](align.py) | `zipalign` / Python | `build/unaligned.apk` | `build/aligned.apk` | 4-байтовое выравнивание ZIP-архива для `mmap` |
-| **08** | [`08_sign.sh`](08_sign.sh) | `apksigner` | `build/aligned.apk`, `tools/debug.keystore` | `dist/antigravity.apk` или `dist/antigravity-dev.apk` | Подпись схемами v1, v2 и v3 |
-| **09** | [`09_verify.sh`](09_verify.sh) | `apksigner` | `dist/*.apk` | Результат проверки в stdout | Полная проверка валидности и схемы подписи |
+| **01** | [`01_gen_config.py`](01_gen_config.py) | Python 3 | `config/app.env`、`AndroidManifest.xml` | `build/gen/**/BuildConfig.java`、`build/res/values/gen.xml`、`build/AndroidManifest.xml` | 生成常量、端口和 dev 清单到构建树（不污染 git） |
+| **02** | [`02_r_java.sh`](02_r_java.sh) | `aapt` | `AndroidManifest.xml`、`res/`、`build/res/`、`android.jar` | `build/gen/**/R.java` | 编译资源标识符，带 overlay，发布版跳过重复执行 |
+| **03** | [`03_compile_java.sh`](03_compile_java.sh) | `javac` | `@build/java_sources.txt`、`android.jar` | `build/obj/**/*.class` | 通过参数文件编译 Java 源码（防止 `ARG_MAX`） |
+| **04** | [`04_dex.sh`](04_dex.sh) | `D8`（`tools/r8.jar`） | `@build/class_files.txt`、`android.jar` | `build/dex/classes.dex` | 通过 D8 参数文件将 Java 字节码转换为 DEX，避免 CLI 溢出 |
+| **05** | [`05_stage_assets.py`](05_stage_assets.py) | Python 3 + `modules/runner` | 运行时核心、`web/`、`env/dist/env` | `build/staging/assets/` | 收集并校验资源（runtime、web、env） |
+| **06** | [`06_package.sh`](06_package.sh) | `aapt` + `zipfile` | 资源 + `build/res` overlay、清单、`classes.dex`、`staging/assets/` | `build/unaligned.apk` | 创建基础 APK（带 overlay），注入 dex 和资源 |
+| **07** | [`align.py`](align.py) | `zipalign` / Python | `build/unaligned.apk` | `build/aligned.apk` | 对 ZIP 归档做 4 字节对齐以便 `mmap` |
+| **08** | [`08_sign.sh`](08_sign.sh) | `apksigner` | `build/aligned.apk`、`tools/debug.keystore` | `dist/antigravity.apk` 或 `dist/antigravity-dev.apk` | 使用 v1、v2 和 v3 方案签名 |
+| **09** | [`09_verify.sh`](09_verify.sh) | `apksigner` | `dist/*.apk` | stdout 中的校验结果 | 完整校验有效性与签名方案 |
 
 ---
 
-## 3. Детальное описание шагов
+## 3. 各步骤详解
 
-### Шаг 01: Генерация конфигурации (`01_gen_config.py`)
-- **Вход**: Переменные из `config/app.env` и `DEV_MODE` (0 или 1).
-- **Выход**:
-  - `build/gen/com/agy/BuildConfig.java`: статические поля `PORT`, `GATEWAY_PORT`, `CORE_VERSION`, `APP_VERSION_NAME`, `DEBUG`.
-  - `build/res/values/gen.xml`: строковые и целочисленные XML-ресурсы для Android framework (генерируются в дерево сборки, исключая загрязнение репозитория и `git status`).
-  - `build/AndroidManifest.xml`: подстановка `${applicationId}`, а в dev-режиме — изменение пакета на `com.agy.dev`, установка `android:debuggable="true"` и изоляция `permission.INTERNAL_BROADCAST`.
+### 步骤 01：生成配置 (`01_gen_config.py`)
+- **输入**：`config/app.env` 中的变量和 `DEV_MODE`（0 或 1）。
+- **输出**：
+  - `build/gen/com/qin/agy/BuildConfig.java`：静态字段 `PORT`、`GATEWAY_PORT`、`CORE_VERSION`、`APP_VERSION_NAME`、`DEBUG`。
+  - `build/res/values/gen.xml`：供 Android framework 使用的字符串和整数 XML 资源（生成到构建树中，避免污染仓库和 `git status`）。
+  - `build/AndroidManifest.xml`：替换 `${applicationId}`，dev 模式下将包名改为 `com.qin.agy.dev`，设置 `android:debuggable="true"`，并隔离 `permission.INTERNAL_BROADCAST`。
 
-### Шаг 02: Генерация R.java (`02_r_java.sh`)
-- Запускает `aapt package -m -J <gen_dir>` для разбора ресурсов и создания числовых ID с оверлеем `-S "$BUILD_DIR/res" -S "$RES_DIR" --auto-add-overlay`.
-- Проверяет имя пакета в целевом манифесте: если пакет равен базовому `com.agy`, второй дублирующий запуск `aapt` опускается. Если имя пакета отличается (например, `com.agy.dev`), генерируется второй фоллбэк `com.agy.R` через `--custom-package com.agy` для совместимости со старыми вызовами.
+### 步骤 02：生成 R.java (`02_r_java.sh`)
+- 运行 `aapt package -m -J <gen_dir>` 解析资源并生成数字 ID，使用 overlay `-S "$BUILD_DIR/res" -S "$RES_DIR" --auto-add-overlay`。
+- 检查目标清单中的包名：如果包名等于基础包名 `com.qin.agy`，则跳过第二次重复的 `aapt` 运行。如果包名不同（例如 `com.qin.agy.dev`），则通过 `--custom-package com.qin.agy` 再生成一个兼容旧调用的回退 `com.qin.agy.R`。
 
-### Шаг 03: Компиляция Java (`03_compile_java.sh`)
-- Собирает список исходников приложения и сгенерированных классов (`BuildConfig`, `R`) в аргументный файл `@$BUILD_DIR/java_sources.txt`, полностью устраняя риск ошибки `ARG_MAX` (`Argument list too long`).
-- Компилирует код компилятором `javac`: `-encoding UTF-8 -source 1.8 -target 1.8 -cp tools/android.jar @$BUILD_DIR/java_sources.txt`.
+### 步骤 03：编译 Java (`03_compile_java.sh`)
+- 将应用源码和生成类（`BuildConfig`、`R`）的列表收集到参数文件 `@$BUILD_DIR/java_sources.txt` 中，彻底消除 `ARG_MAX`（`Argument list too long`）错误的风险。
+- 使用 `javac` 编译代码：`-encoding UTF-8 -source 1.8 -target 1.8 -cp tools/android.jar @$BUILD_DIR/java_sources.txt`。
 
-### Шаг 04: Дексирование D8 (`04_dex.sh`)
-- Сканирует директорию классов `$OBJ_DIR` и генерирует аргументный файл `@$BUILD_DIR/class_files.txt`, устраняя ограничение на размер командной строки.
-- Преобразует скомпилированные `.class` файлы в `classes.dex` через автономный D8 (`com.android.tools.r8.D8` из `tools/r8.jar`).
-- Параметры: `--output $DEX_DIR`, `--lib tools/android.jar`, `--min-api 24`, `@$BUILD_DIR/class_files.txt`.
+### 步骤 04：D8 dex 化 (`04_dex.sh`)
+- 扫描类目录 `$OBJ_DIR` 并生成参数文件 `@$BUILD_DIR/class_files.txt`，消除命令行长度限制。
+- 通过独立的 D8（`tools/r8.jar` 中的 `com.android.tools.r8.D8`）将编译好的 `.class` 文件转换为 `classes.dex`。
+- 参数：`--output $DEX_DIR`、`--lib tools/android.jar`、`--min-api 24`、`@$BUILD_DIR/class_files.txt`。
 
-### Шаг 05: Стейджинг ассетов (`05_stage_assets.py`)
-- Собирает три группы ресурсов в `build/staging/assets/`:
-  1. `runtime/`: бинарное ядро `language_server` (пропатченное и криптографически проверенное через `prepare_runtime.py`).
-  2. `web/`: фронтенд-интерфейс (`index.html`, `compiled_tailwind.css`, `generated/main.js` и т.д.). Перед копированием автоматически вызывает сборку бандлов `bash web/build.sh`, гарантируя актуальность веб-ресурсов из `web/src/`. Исключает служебные файлы (`main.js`, `src/`, `tests/`, `build.sh`, `patch_main.py`, а также `src.manifest`) через фильтр `web_ignore`.
-  3. `env/`: оверлеи окружения, `libtermux-exec.so` и `manifest.json`.
+### 步骤 05：资源暂存 (`05_stage_assets.py`)
+- 将三组资源收集到 `build/staging/assets/`：
+  1. `runtime/`：二进制核心 `language_server`（经 `prepare_runtime.py` 打补丁并加密校验）。
+  2. `web/`：前端界面（`index.html`、`compiled_tailwind.css`、`generated/main.js` 等）。复制前自动调用 bundle 构建 `bash web/build.sh`，保证 `web/src/` 中的最新 Web 资源进入 APK。通过 `web_ignore` 过滤器排除辅助文件（`main.js`、`src/`、`tests/`、`build.sh`、`patch_main.py` 以及 `src.manifest`）。
+  3. `env/`：环境 overlay、`libtermux-exec.so` 和 `manifest.json`。
 
-### Шаг 06: Упаковка APK (`06_package.sh`)
-- `aapt package -f` формирует каркас APK с поддержкой оверлея ресурсов (`-S "$BUILD_DIR/res" -S "$RES_DIR" --auto-add-overlay`), бинарным `AndroidManifest.xml` и скомпилированными ресурсами (`resources.arsc`).
-- Потоковый Python ZIP-инжектор добавляет `classes.dex` и дерево `assets/`.
-- Файлы, уже сжатые алгоритмами gzip/png/jpeg/zip, сохраняются без повторного сжатия (`ZIP_STORED`), остальные сжимаются через `ZIP_DEFLATED`.
+### 步骤 06：打包 APK (`06_package.sh`)
+- `aapt package -f` 生成 APK 骨架，支持资源 overlay（`-S "$BUILD_DIR/res" -S "$RES_DIR" --auto-add-overlay`）、二进制 `AndroidManifest.xml` 和已编译资源（`resources.arsc`）。
+- 流式 Python ZIP 注入器添加 `classes.dex` 和 `assets/` 树。
+- 已使用 gzip/png/jpeg/zip 算法压缩过的文件不重复压缩（`ZIP_STORED`），其余文件使用 `ZIP_DEFLATED` 压缩。
 
-### Шаг 07: Выравнивание ZipAlign (`align.py`)
-- Выравнивает заголовки некомпилированных данных на границу 4 байт (и 4096 байт для библиотек `.so`), чтобы ОС Android могла обращаться к файлам напрямую через `mmap()` без распаковки в RAM.
-- **Двухуровневая стратегия**:
-  1. Системный бинарник `zipalign` (если установлен в `$PATH`).
-  2. Встроенный кроссплатформенный чистый Python-алгоритм без внешних зависимостей.
+### 步骤 07：ZipAlign 对齐 (`align.py`)
+- 将未编译数据的头部对齐到 4 字节边界（`.so` 库为 4096 字节），使 Android 系统能通过 `mmap()` 直接访问文件，无需解压到 RAM。
+- **双层策略**：
+  1. 系统二进制 `zipalign`（如果已安装在 `$PATH` 中）。
+  2. 内置跨平台纯 Python 算法，无外部依赖。
 
-### Шаги 08 и 09: Подпись и проверка (`08_sign.sh` & `09_verify.sh`)
-- `apksigner sign` подписывает APK ключом из `tools/debug.keystore`.
-- Поддерживаются схемы:
-  - **v1**: JAR-сигнатура (совместимость).
-  - **v2**: APK Signature Scheme v2 (Android 7.0+).
-  - **v3**: APK Signature Scheme v3 (Android 9.0+).
-- `apksigner verify --verbose` производит верификацию сигнатуры и дайджестов манифеста.
+### 步骤 08 和 09：签名与校验 (`08_sign.sh` 和 `09_verify.sh`)
+- `apksigner sign` 使用 `tools/debug.keystore` 中的密钥签名 APK。
+- 支持的方案：
+  - **v1**：JAR 签名（兼容性）。
+  - **v2**：APK Signature Scheme v2（Android 7.0+）。
+  - **v3**：APK Signature Scheme v3（Android 9.0+）。
+- `apksigner verify --verbose` 校验签名和清单摘要。
 
 ---
 
-## 4. Зависимости и инструменты
+## 4. 依赖与工具
 
-| Инструмент | Минимальная версия | Назначение | Расположение |
+| 工具 | 最低版本 | 用途 | 位置 |
 |---|---|---|---|
-| **Python** | 3.8+ | Конфигурация, стейджинг, упаковка, ZipAlign | Системный `$PATH` |
-| **aapt** | v0.2+ (v1) | Парсинг XML, компиляция ресурсов, каркас APK | Системный `$PATH` |
-| **javac** | OpenJDK 8 / 11 / 17 | Компиляция `.java` -> `.class` | Системный `$PATH` |
-| **java** | JRE 8+ | Запуск R8/D8 | Системный `$PATH` |
-| **r8.jar** | Android R8/D8 | Дексер (bytecode -> DEX) | `tools/r8.jar` |
-| **android.jar** | API 24+ (актуально API 28) | Android Framework Stubs | `tools/android.jar` |
-| **zipalign** | Любая (опционально) | Быстрое нативное выравнивание | Системный `$PATH` |
-| **apksigner** | 0.9+ | Подпись и проверка APK | Системный `$PATH` |
-| **debug.keystore**| JKS/PKCS12 | Тестовый сертификат подписи | `tools/debug.keystore` |
+| **Python** | 3.8+ | 配置、暂存、打包、ZipAlign | 系统 `$PATH` |
+| **aapt** | v0.2+ (v1) | 解析 XML、编译资源、APK 骨架 | 系统 `$PATH` |
+| **javac** | OpenJDK 8 / 11 / 17 | 编译 `.java` -> `.class` | 系统 `$PATH` |
+| **java** | JRE 8+ | 运行 R8/D8 | 系统 `$PATH` |
+| **r8.jar** | Android R8/D8 | Dex 转换器（bytecode -> DEX） | `tools/r8.jar` |
+| **android.jar** | API 24+（当前为 API 28） | Android Framework 存根 | `tools/android.jar` |
+| **zipalign** | 任意（可选） | 快速原生对齐 | 系统 `$PATH` |
+| **apksigner** | 0.9+ | APK 签名与校验 | 系统 `$PATH` |
+| **debug.keystore**| JKS/PKCS12 | 测试签名证书 | `tools/debug.keystore` |
 
 ---
 
-## 5. Использование
+## 5. 使用方法
 
 ```bash
-# Стандартная сборка релизного APK (dist/antigravity.apk, порт 45157):
+# 标准发布版 APK 构建（dist/antigravity.apk，端口 45167）：
 bash modules/builder/build_apk.sh
 
-# Сборка релизной версии с обходом проверок (dist/antigravity-region-bypass.apk, порт 45157):
+# 带地区绕过的发布版构建（dist/antigravity-region-bypass.apk，端口 45167）：
 bash modules/builder/build_apk.sh --region-bypass
 
-# Запуск тестов модуля builder:
+# 运行 builder 模块测试：
 bash modules/builder/tests/run_all.sh
 ```
 
 ---
 
-## 6. Результаты аудита: баги, костыли и оптимизации
+## 6. 审计结果：Bug、临时方案与优化
 
-### 1. Критический баг в `align.py` (исправлен)
-- **Проблема**: В чистой Python-реализации `align_with_python` для каждого элемента вызывался метод `zin.read()`. Этот метод распаковывает сжатые потоки `ZIP_DEFLATED`. Затем эти распакованные байты записывались в выходной файл с исходными заголовками `compress_type=8` и размером `compress_size`. В результате при отсутствии бинарника `zipalign` любой собранный APK был полностью поврежден (`zlib.error: invalid stored block lengths`).
-- **Исправление**: Метод переписан на прямое чтение сырого потока сжатых байт (`raw payload`) по смещению локального заголовка с буферизацией чанками по 64 КБ. Повреждение данных устранено, потребление RAM снижено с O(N) до O(1).
+### 1. `align.py` 中的严重 Bug（已修复）
+- **问题**：纯 Python 实现 `align_with_python` 对每个条目调用 `zin.read()`。该方法会解压 `ZIP_DEFLATED` 压缩流。随后这些解压后的字节连同原始头部 `compress_type=8` 和 `compress_size` 被写入输出文件。结果是，在没有 `zipalign` 二进制文件的情况下，任何构建出的 APK 都会完全损坏（`zlib.error: invalid stored block lengths`）。
+- **修复**：改写为按本地头部偏移直接读取原始压缩字节流（`raw payload`），以 64 KB 分块缓冲。数据损坏已消除，RAM 占用从 O(N) 降至 O(1)。
 
-### 2. Загрязнение исходного кода (`gen.xml`) (исправлено)
-- **Проблема**: `01_gen_config.py` записывал `gen.xml` напрямую в каталог репозитория `app/src/main/res/values/gen.xml`, что приводило к загрязнению `git status` и риску случайного коммита dev-конфигурации.
-- **Исправление**: Перенос генерации в дерево сборки `$BUILD_DIR/res/values/gen.xml`. В `02_r_java.sh` и `06_package.sh` добавлена поддержка ресурсного оверлея `-S "$BUILD_DIR/res" -S "$RES_DIR" --auto-add-overlay`, благодаря чему сгенерированные значения подставляются динамически, а рабочее дерево Git остается чистым.
+### 2. 源码污染（`gen.xml`）（已修复）
+- **问题**：`01_gen_config.py` 将 `gen.xml` 直接写入仓库目录 `app/src/main/res/values/gen.xml`，导致 `git status` 被污染，并有误提交 dev 配置的风险。
+- **修复**：将生成位置移到构建树 `$BUILD_DIR/res/values/gen.xml`。在 `02_r_java.sh` 和 `06_package.sh` 中添加了资源 overlay 支持 `-S "$BUILD_DIR/res" -S "$RES_DIR" --auto-add-overlay`，使生成值动态代入，Git 工作树保持干净。
 
-### 3. Двойной прогон `aapt` в `02_r_java.sh` (исправлено)
-- **Проблема**: В релизном режиме `aapt` запускался дважды с идентичными параметрами (`com.agy`), создавая избыточную нагрузку на CPU.
-- **Исправление**: В `02_r_java.sh` добавлена проверка манифеста (`PKG=$(sed -n -E 's/.*package="([^"]+)".*/\1/p' "$MANIFEST" | head -n 1)`). Если целевой пакет уже равен `com.agy`, повторный запуск пропускается. Если пакет отличается (например, `com.agy.dev`), выполняется генерация обоих пакетов (`com.agy.dev.R` и совместимого фоллбэка `com.agy.R`).
+### 3. `02_r_java.sh` 中的双重 `aapt` 运行（已修复）
+- **问题**：发布模式下 `aapt` 以相同参数（`com.qin.agy`）运行两次，造成多余的 CPU 负载。
+- **修复**：在 `02_r_java.sh` 中添加了清单检查（`PKG=$(sed -n -E 's/.*package="([^"]+)".*/\1/p' "$MANIFEST" | head -n 1)`）。如果目标包已等于 `com.qin.agy`，则跳过重复运行。如果包名不同（例如 `com.qin.agy.dev`），则生成两个包（`com.qin.agy.dev.R` 和兼容回退 `com.qin.agy.R`）。
 
-### 4. Риск переполнения командной строки (`ARG_MAX`) (исправлено)
-- **Проблема**: В `03_compile_java.sh` и `04_dex.sh` все исходные файлы и классы подставлялись массивами bash `${JAVA_SOURCES[@]}` и `${CLASS_FILES[@]}`. При масштабировании кодовой базы это вызывало системную ошибку ядра Linux `Argument list too long` (`E2BIG`).
-- **Исправление**:
-  - Для `javac` в `03_compile_java.sh`: сформирован аргументный файл `@$BUILD_DIR/java_sources.txt`, в который записываются все пути с экранированием.
-  - Для `D8` в `04_dex.sh`: сканируется `$OBJ_DIR` и генерируется аргументный файл `@$BUILD_DIR/class_files.txt`, передаваемый в `com.android.tools.r8.D8` (устраняя ограничение длины команды и обходя несовместимость D8 с передачей сырых каталогов).
+### 4. 命令行溢出风险（`ARG_MAX`）（已修复）
+- **问题**：在 `03_compile_java.sh` 和 `04_dex.sh` 中，所有源文件和类都通过 bash 数组 `${JAVA_SOURCES[@]}` 和 `${CLASS_FILES[@]}` 代入。随着代码库扩大，这会触发 Linux 内核系统错误 `Argument list too long`（`E2BIG`）。
+- **修复**：
+  - 对于 `03_compile_java.sh` 中的 `javac`：生成参数文件 `@$BUILD_DIR/java_sources.txt`，将所有路径转义后写入。
+  - 对于 `04_dex.sh` 中的 `D8`：扫描 `$OBJ_DIR` 并生成参数文件 `@$BUILD_DIR/class_files.txt`，传给 `com.android.tools.r8.D8`（消除命令长度限制，并绕过 D8 不支持传入原始目录的问题）。
 
-### 5. Множественные запуски JVM (JVM Overhead)
-- **Проблема**: Конвейер запускает виртуальную машину Java 4 раза подряд (`javac`, `d8`, `apksigner sign`, `apksigner verify`). На мобильном CPU каждый запуск JVM занимает 0.8–1.5 секунды.
-- **Решение**: Объединение фаз подписи и верификации, использование объединенных скриптов или демона компиляции.
+### 5. 多次 JVM 启动（JVM Overhead）
+- **问题**：流水线连续启动 Java 虚拟机 4 次（`javac`、`d8`、`apksigner sign`、`apksigner verify`）。在移动 CPU 上每次 JVM 启动耗时 0.8–1.5 秒。
+- **解决方案**：合并签名与校验阶段，使用合并脚本或编译守护进程。
 
-### 6. Неработающий флаг `--fast`
-- **Проблема**: Флаг `--fast` парсился в `build_apk.sh`, но не передавался в дочерние скрипты. При каждом запуске директория `build/` полностью удалялась (`rm -rf`), повторно копируя и перепаковывая ~240 МБ ассетов.
-- **Решение**: Проброс флага `FAST_BUILD` в `05_stage_assets.py` и `06_package.sh` для инкрементальной сборки и пропуска неизменившихся ассетов ядра.
+### 6. 失效的 `--fast` 标志
+- **问题**：`--fast` 标志在 `build_apk.sh` 中被解析，但未传递给子脚本。每次运行时 `build/` 目录都会被完全删除（`rm -rf`），重新复制并重新打包约 240 MB 资源。
+- **解决方案**：将 `FAST_BUILD` 标志透传到 `05_stage_assets.py` 和 `06_package.sh`，实现增量构建并跳过未变更的核心资源。
 
-### 7. Избыточный дисковый I/O на флеш-памяти
-- **Проблема**: Полная запись APK на диск выполняется 3 раза подряд: `unaligned.apk` (~103 МБ) -> `aligned.apk` (~103 МБ) -> `dist/antigravity.apk` (~103 МБ). Суммарная запись >300 МБ изнашивает flash-память Android-устройства.
-- **Решение**: Выполнять `align.py` сразу в целевой файл `$DIST_DIR/antigravity.apk` и подписывать его на месте (`in-place signing`).
+### 7. 闪存上过多的磁盘 I/O
+- **问题**：APK 完整写入磁盘连续进行 3 次：`unaligned.apk`（约 103 MB）-> `aligned.apk`（约 103 MB）-> `dist/antigravity.apk`（约 103 MB）。总写入量超过 300 MB，会磨损 Android 设备的闪存。
+- **解决方案**：让 `align.py` 直接输出到目标文件 `$DIST_DIR/antigravity.apk` 并就地签名（`in-place signing`）。
 
-### 8. Интеграция веб-сборщика и предотвращение утечки манифестов (исправлено)
-- **Проблема**: В `05_stage_assets.py` веб-ассеты копировались «как есть» из `web/` без предварительного запуска сборки, из-за чего изменения в `web/src/` могли не попадать в APK. Кроме того, в фильтре `web_ignore` отсутствовал `src.manifest`, в результате чего манифест исходников попадал в ресурсы APK.
-- **Исправление**: В `05_stage_assets.py` внедрен автоматический запуск `bash web/build.sh` перед стадированием ассетов, а файл `src.manifest` добавлен в список игнорирования `web_ignore`.
+### 8. Web 构建器集成与防止清单泄露（已修复）
+- **问题**：在 `05_stage_assets.py` 中，Web 资源直接从 `web/` 原样复制，未预先运行构建，导致 `web/src/` 中的改动可能进不了 APK。此外，`web_ignore` 过滤器中缺少 `src.manifest`，导致源码清单进入了 APK 资源。
+- **修复**：在 `05_stage_assets.py` 中加入了暂存资源前自动运行 `bash web/build.sh`，并将 `src.manifest` 加入 `web_ignore` 忽略列表。

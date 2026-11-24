@@ -1,29 +1,29 @@
-# Antigravity Core Binary Patcher (`modules/patches`)
+# Antigravity 核心二进制补丁器 (`modules/patches`)
 
-Модуль точечного бинарного патчинга ядра Antigravity (`language_server`) под архитектуру **Android ARM64 (aarch64)**. Обеспечивает обход платформенных ограничений (Android seccomp, Bionic libc, отсутствие LSE atomics на ARMv8.0-A) и интеграцию с runtime-окружением.
+针对 **Android ARM64 (aarch64)** 架构的 Antigravity 核心（`language_server`）定点二进制补丁模块。用于绕过平台限制（Android seccomp、Bionic libc、ARMv8.0-A 上缺少 LSE atomics）并与 runtime 环境集成。
 
 ---
 
-## 1. Архитектура
+## 1. 架构
 
 ```
 modules/patches/
-├── pipeline.py              # CLI-оркестратор и API запуска пайплайна
+├── pipeline.py              # CLI 编排器与管道启动 API
 ├── spec/
-│   └── patch_manifest.json  # Спецификация ожидаемых патчей и политик
-├── engine/                  # Низкоуровневые движки анализа и модификации
-│   ├── elf_scanner.py       # Парсер ELF64/AArch64 и локатор секции .text
-│   ├── pclntab_scanner.py   # Парсер таблицы функций Go pclntab и MOVZ-кодировщик
-│   ├── byte_replacer.py     # Поиск и in-place замена байтовых паттернов
-│   ├── reporter.py          # Формирование JSON-отчетов по выполненным патчам
-│   └── patch_context.py     # Модель контекста выполнения
-├── groups/                  # Функциональные группы патчей
-│   ├── gates/               # Обход CLI gate и Enterprise Auth
-│   ├── syscalls/            # Замена seccomp-блокируемых faccessat2/fchmodat2
-│   ├── sigill/              # Защита обработчика SIGILL (для liblse_compat)
-│   ├── resolv/              # Редирект /etc/resolv.conf на относительный путь
-│   └── failfast/            # Подавление проверок CPU ARMv8.0-A и preinit atomic
-└── tests/                   # Модульные и интеграционные тесты
+│   └── patch_manifest.json  # 预期补丁与策略的规范
+├── engine/                  # 底层分析与修改引擎
+│   ├── elf_scanner.py       # ELF64/AArch64 解析器与 .text 段定位器
+│   ├── pclntab_scanner.py   # Go pclntab 函数表解析器与 MOVZ 编码器
+│   ├── byte_replacer.py     # 字节模式搜索与 in-place 替换
+│   ├── reporter.py          # 已执行补丁的 JSON 报告生成
+│   └── patch_context.py     # 执行上下文模型
+├── groups/                  # 功能补丁组
+│   ├── gates/               # 绕过 CLI gate 与 Enterprise Auth
+│   ├── syscalls/            # 替换被 seccomp 拦截的 faccessat2/fchmodat2
+│   ├── sigill/              # SIGILL 处理器保护（用于 liblse_compat）
+│   ├── resolv/              # 将 /etc/resolv.conf 重定向为相对路径
+│   └── failfast/            # 抑制 ARMv8.0-A CPU 检查与 preinit atomic
+└── tests/                   # 模块与集成测试
     ├── test_byte_replacer.py
     ├── test_elf_scanner.py
     ├── test_pclntab_scanner.py
@@ -33,52 +33,52 @@ modules/patches/
 
 ---
 
-## 2. Группы патчей
+## 2. 补丁组
 
-| Группа | Модуль | Цель и сигнатура | Действие |
+| 组 | 模块 | 目标与签名 | 动作 |
 |---|---|---|---|
-| **gates** | `cli_gate` | `ldrb w1, [x0,#8]` в проверке CLI gate | Заменяется на `mov w1, #1` (`21 00 80 52`) |
-| **gates** | `enterprise_auth` | `EnterpriseAuthValidator.Validate` | Принудительная установка флага валидности |
-| **syscalls** | `faccessat` | `syscall.faccessat2` (sys_439: `0xd28036e0`) | Ретаргетинг на `faccessat` (sys_48: `0xd2800600`) |
-| **syscalls** | `fchmodat` | `syscall.fchmodat2` (sys_452: `0xd2803880`) | Ретаргетинг на `fchmodat` (sys_53: `0xd28006a0`) |
-| **sigill** | `sigill_handler` | Вызов `rt_sigaction` в рантайме Go | Игнорирование сигнала `SIGILL` (4) для сохранения обработчика `liblse_compat.so` |
-| **resolv** | `resolv_redirect` | Строка `/etc/resolv.conf` (16 байт) | Замена на `etc//resolv.conf` без изменения длины |
-| **failfast** | `crash_suppressor` | ARMv8.0-A CPU feature check (`0x7701180`) & preinit atomic (`0x7765c60`) | Branch `b +0x64` в обход проверки LSE/CRC/AES и замена `ldaddal` на `ldr`/`str` для полной совместимости с процессорами ARMv8.0-A (Snapdragon 660 и др., без аппаратного LSE) |
+| **gates** | `cli_gate` | CLI gate 检查中的 `ldrb w1, [x0,#8]` | 替换为 `mov w1, #1`（`21 00 80 52`） |
+| **gates** | `enterprise_auth` | `EnterpriseAuthValidator.Validate` | 强制设置有效标志 |
+| **syscalls** | `faccessat` | `syscall.faccessat2`（sys_439：`0xd28036e0`） | 重定向到 `faccessat`（sys_48：`0xd2800600`） |
+| **syscalls** | `fchmodat` | `syscall.fchmodat2`（sys_452：`0xd2803880`） | 重定向到 `fchmodat`（sys_53：`0xd28006a0`） |
+| **sigill** | `sigill_handler` | Go 运行时中的 `rt_sigaction` 调用 | 忽略信号 `SIGILL`（4），以保留 `liblse_compat.so` 的处理器 |
+| **resolv** | `resolv_redirect` | 字符串 `/etc/resolv.conf`（16 字节） | 替换为 `etc//resolv.conf`，长度不变 |
+| **failfast** | `crash_suppressor` | ARMv8.0-A CPU 特性检查（`0x7701180`）与 preinit atomic（`0x7765c60`） | 用 `b +0x64` 分支绕过 LSE/CRC/AES 检查，并将 `ldaddal` 替换为 `ldr`/`str`，实现与 ARMv8.0-A 处理器（Snapdragon 660 等，无硬件 LSE）的完全兼容 |
 
 ---
 
-## 3. Оптимизации движков анализа (Заход 1)
+## 3. 分析引擎优化（第一轮）
 
-1. **`elf_scanner.py`**:
-   - Прямая валидация заголовка `e_ident` по смещению 0 с поддержкой поиска встроенных ELF-контейнеров.
-   - Поддержка stripped-бинарников (`e_shnum == 0`): автоматический fallback на Program Headers (`PT_LOAD` с флагом `PF_X`).
-   - Строгая проверка границ смещений и размеров для секций `.text`, `.shstrtab` и таблиц заголовков.
-2. **`pclntab_scanner.py`**:
-   - Оптимизированный `find_function`: прямой поиск позиции имени функции в таблице строк `funcnametab`.
-   - Внутреннее кэширование результатов поиска функций (`_cache`) в контексте pclntab, исключающее циклы декодирования десятков тысяч строк latin-1 на каждый сисколл.
-3. **Zero-Copy в группах патчей**:
-   - Полное устранение промежуточных аллокаций `bytes(data)` в циклах сканирования; прямая работа по протоколу буфера (`bytearray` / `memoryview`).
-   - Устранение обхода верификации в `crash_suppressor.py`: строгое соблюдение политики fail-closed.
+1. **`elf_scanner.py`**：
+   - 在偏移 0 处直接校验 `e_ident` 头，支持搜索内嵌 ELF 容器。
+   - 支持 stripped 二进制（`e_shnum == 0`）：自动 fallback 到 Program Headers（带 `PF_X` 标志的 `PT_LOAD`）。
+   - 对 `.text`、`.shstrtab` 段与头表的偏移与大小进行严格边界检查。
+2. **`pclntab_scanner.py`**：
+   - 优化的 `find_function`：直接在字符串表 `funcnametab` 中搜索函数名位置。
+   - 在 pclntab 上下文中内部缓存函数搜索结果（`_cache`），避免每次 syscall 都循环解码数万个 latin-1 字符串。
+3. **补丁组中的 Zero-Copy**：
+   - 彻底消除扫描循环中 `bytes(data)` 的中间分配；直接按缓冲区协议操作（`bytearray` / `memoryview`）。
+   - 消除 `crash_suppressor.py` 中的校验绕过：严格遵守 fail-closed 策略。
 
 ---
 
-## 4. CLI & Python API
+## 4. CLI 与 Python API
 
 ### CLI Runner
 ```bash
-# Применение всех патчей к бинарнику:
+# 对二进制应用全部补丁：
 python3 modules/patches/pipeline.py /path/to/language_server
 
-# С сохранением отчета в manifest:
+# 将报告保存到 manifest：
 python3 modules/patches/pipeline.py /path/to/language_server --manifest report.json
 
-# Проверка наличия патчей (exit code 0 / 1):
+# 检查补丁是否存在（exit code 0 / 1）：
 python3 modules/patches/pipeline.py /path/to/language_server --verify
 
-# Тестовый прогон без записи изменений:
+# 不写入更改的试运行：
 python3 modules/patches/pipeline.py /path/to/language_server --dry-run
 
-# Толерантность к отсутствующим сигнатурам:
+# 容忍缺失的签名：
 python3 modules/patches/pipeline.py /path/to/language_server --allow-missing
 ```
 
@@ -88,23 +88,23 @@ import pipeline
 
 ok = pipeline.run_pipeline(
     target_path="/path/to/language_server",
-    verify=False,        # Только верификация
-    dry_run=False,       # Прогон без записи на диск
-    allow_missing=False, # Не падать при отсутствии сигнатур
-    manifest_path=None   # Путь для сохранения JSON-манифеста
+    verify=False,        # 仅验证
+    dry_run=False,       # 试运行，不写入磁盘
+    allow_missing=False, # 缺失签名时不失败
+    manifest_path=None   # 保存 JSON manifest 的路径
 )
 ```
 
 ---
 
-## 5. Тестирование
+## 5. 测试
 
-Запуск полного тестового набора:
+运行完整测试套件：
 ```bash
 bash modules/patches/tests/run_all.sh
 ```
 
-- `test_byte_replacer.py`: юнит-тесты сопоставления байт и точечной замены.
-- `test_elf_scanner.py`: валидация ELF64, fallback на Program Headers для stripped-бинарников и проверка границ.
-- `test_pclntab_scanner.py`: валидация кодирования опкодов AArch64 `MOVZ X0, #imm`, прямой поиск в `funcnametab` и кэширование.
-- `test_full_pipeline.py`: E2E тест на реальном pristine-бинарнике `language_server` (dry-run, apply, sha256 check, verify, idempotence, fail-closed validation).
+- `test_byte_replacer.py`：字节匹配与定点替换的单元测试。
+- `test_elf_scanner.py`：ELF64 校验、stripped 二进制的 Program Headers fallback 与边界检查。
+- `test_pclntab_scanner.py`：AArch64 操作码 `MOVZ X0, #imm` 编码校验、`funcnametab` 直接搜索与缓存。
+- `test_full_pipeline.py`：在真实 pristine 二进制 `language_server` 上的 E2E 测试（dry-run、apply、sha256 check、verify、idempotence、fail-closed validation）。

@@ -11,16 +11,7 @@ import com.agy.runtime.RuntimeManager;
 import com.agy.ui.TaskLiveNotifier;
 
 import java.io.File;
-import java.net.URL;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
 import java.util.concurrent.TimeUnit;
-
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 /**
  * Foreground host for the patched core (language_server). Holds a wake lock,
@@ -237,47 +228,17 @@ public final class CoreServerService extends Service {
         }
     }
 
+    /**
+     * Liveness check for the embedded core. Reuses {@link CoreReadyProbe},
+     * which pins the bundled core certificate (SHA-256) instead of trusting
+     * any certificate presented on loopback.
+     */
     private boolean probeCore() {
         int port = CoreRuntimeState.httpsPort;
         if (port <= 0) {
             return false;
         }
-        HttpsURLConnection conn = null;
-        try {
-            SSLContext sc = SSLContext.getInstance("TLS");
-            sc.init(null, new TrustManager[]{new X509TrustManager() {
-                @Override
-                public void checkClientTrusted(X509Certificate[] chain, String authType) {
-                }
-
-                @Override
-                public void checkServerTrusted(X509Certificate[] chain, String authType) {
-                }
-
-                @Override
-                public X509Certificate[] getAcceptedIssuers() {
-                    return new X509Certificate[0];
-                }
-            }}, new SecureRandom());
-            conn = (HttpsURLConnection) new URL("https://127.0.0.1:" + port + "/").openConnection();
-            conn.setSSLSocketFactory(sc.getSocketFactory());
-            conn.setHostnameVerifier(new HostnameVerifier() {
-                @Override
-                public boolean verify(String hostname, javax.net.ssl.SSLSession session) {
-                    return true;
-                }
-            });
-            conn.setConnectTimeout(3000);
-            conn.setReadTimeout(3000);
-            conn.getResponseCode();
-            return true;
-        } catch (Exception e) {
-            return false;
-        } finally {
-            if (conn != null) {
-                conn.disconnect();
-            }
-        }
+        return CoreReadyProbe.probeOnce(this, port);
     }
 
     private void startBackgroundDaemon() {

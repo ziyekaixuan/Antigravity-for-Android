@@ -1,5 +1,10 @@
 """
 client.py - Lightweight IPC client sending command envelopes to the Android System Gateway.
+
+Authentication: the gateway requires `Authorization: Bearer <token>`. The token
+is a per-process random value the app writes to the app-private
+`logs/gateway.token` file (same UID only); this client reads it the same way
+it reads `logs/gateway.port`.
 """
 import json
 import os
@@ -7,46 +12,86 @@ import urllib.request
 import urllib.error
 from typing import Dict, Any
 
-def resolve_gateway_url() -> str:
-    if "AGY_GATEWAY_URL" in os.environ:
-        return os.environ["AGY_GATEWAY_URL"]
+# Fallback ports must match GATEWAY_PORT / GATEWAY_PORT_DEV in config/app.env.
+GATEWAY_PORT = 45170
+GATEWAY_PORT_DEV = 45171
 
-    candidates = []
+
+def _candidate_log_dirs():
+    dirs = []
     home = os.environ.get("HOME")
     if home:
-        candidates.append(os.path.join(home, "logs", "gateway.port"))
+        dirs.append(os.path.join(home, "logs"))
 
     try:
         from ..context import path_resolver
         app_root = path_resolver.load_paths().get("app_root")
         if app_root:
-            candidates.append(os.path.join(app_root, "logs", "gateway.port"))
+            dirs.append(os.path.join(app_root, "logs"))
     except Exception:
         pass
 
-    candidates.extend([
-        "/data/user/0/com.agy.dev/files/logs/gateway.port",
-        "/data/user/0/com.agy/files/logs/gateway.port"
+    dirs.extend([
+        "/data/user/0/com.qin.agy.dev/files/logs",
+        "/data/user/0/com.qin.agy/files/logs",
     ])
+    return dirs
 
-    for pfile in candidates:
-        if os.path.isfile(pfile):
+
+def _read_log_file(name: str):
+    for d in _candidate_log_dirs():
+        p = os.path.join(d, name)
+        if os.path.isfile(p):
             try:
-                with open(pfile, "r") as f:
-                    p = f.read().strip()
-                    if p.isdigit():
-                        return f"http://127.0.0.1:{p}/gateway"
+                with open(p, "r") as f:
+                    value = f.read().strip()
+                    if value:
+                        return value
             except Exception:
                 pass
+    return None
 
-    is_dev = (
+
+def _is_dev() -> bool:
+    return (
         os.environ.get("DEV_MODE") == "1"
-        or os.environ.get("AGY_APPLICATION_ID") == "com.agy.dev"
-        or "com.agy.dev" in (os.environ.get("HOME") or "")
+        or os.environ.get("AGY_APPLICATION_ID") == "com.qin.agy.dev"
+        or "com.qin.agy.dev" in (os.environ.get("HOME") or "")
     )
-    return "http://127.0.0.1:45161/gateway" if is_dev else "http://127.0.0.1:45160/gateway"
+
+
+def resolve_gateway_url() -> str:
+    if "AGY_GATEWAY_URL" in os.environ:
+        return os.environ["AGY_GATEWAY_URL"]
+
+    port = _read_log_file("gateway.port")
+    if port and port.isdigit():
+        return f"http://127.0.0.1:{port}/gateway"
+
+    return (
+        f"http://127.0.0.1:{GATEWAY_PORT_DEV}/gateway"
+        if _is_dev()
+        else f"http://127.0.0.1:{GATEWAY_PORT}/gateway"
+    )
+
+
+def resolve_gateway_token():
+    token = os.environ.get("AGY_GATEWAY_TOKEN")
+    if token:
+        return token
+    return _read_log_file("gateway.token")
+
 
 DEFAULT_GATEWAY_URL = resolve_gateway_url()
+
+
+def _build_request(url: str, data: bytes):
+    headers = {"Content-Type": "application/json"}
+    token = resolve_gateway_token()
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    return urllib.request.Request(url, data=data, headers=headers)
+
 
 def send_command(command: str, payload: Dict[str, Any] = None, gateway_url: str = None) -> Dict[str, Any]:
     url = gateway_url or resolve_gateway_url()
@@ -55,17 +100,18 @@ def send_command(command: str, payload: Dict[str, Any] = None, gateway_url: str 
         "payload": payload or {}
     }
     data = json.dumps(packet).encode("utf-8")
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
-    
+    req = _build_request(url, data)
+
     try:
         with urllib.request.urlopen(req, timeout=1.0) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except (urllib.error.URLError, OSError) as e:
-        # If default url was used, try the alternate port (45160 <-> 45161)
+        # If default url was used, try the alternate port (release <-> dev).
         if gateway_url is None:
-            alt_url = "http://127.0.0.1:45160/gateway" if ":45161/" in url else "http://127.0.0.1:45161/gateway"
+            alt_port = GATEWAY_PORT if f":{GATEWAY_PORT_DEV}/" in url else GATEWAY_PORT_DEV
+            alt_url = f"http://127.0.0.1:{alt_port}/gateway"
             try:
-                alt_req = urllib.request.Request(alt_url, data=data, headers={"Content-Type": "application/json"})
+                alt_req = _build_request(alt_url, data)
                 with urllib.request.urlopen(alt_req, timeout=1.0) as resp:
                     return json.loads(resp.read().decode("utf-8"))
             except Exception:

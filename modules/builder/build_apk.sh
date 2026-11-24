@@ -9,12 +9,12 @@ export DIST_DIR="$PROJECT_ROOT/dist"
 export APP_DIR="$PROJECT_ROOT/app"
 export TOOLS_DIR="$PROJECT_ROOT/tools"
 
-if [ -d "/data/user/0/com.agy.dev/files" ] && [ -w "/data/user/0/com.agy.dev/files" ]; then
-    export HOME="/data/user/0/com.agy.dev/files"
-    export PATH="/data/user/0/com.agy.dev/files/usr/bin:$PATH"
-elif [ -d "/data/user/0/com.agy/files" ] && [ -w "/data/user/0/com.agy/files" ]; then
-    export HOME="/data/user/0/com.agy/files"
-    export PATH="/data/user/0/com.agy/files/usr/bin:$PATH"
+if [ -d "/data/user/0/com.qin.agy.dev/files" ] && [ -w "/data/user/0/com.qin.agy.dev/files" ]; then
+    export HOME="/data/user/0/com.qin.agy.dev/files"
+    export PATH="/data/user/0/com.qin.agy.dev/files/usr/bin:$PATH"
+elif [ -d "/data/user/0/com.qin.agy/files" ] && [ -w "/data/user/0/com.qin.agy/files" ]; then
+    export HOME="/data/user/0/com.qin.agy/files"
+    export PATH="/data/user/0/com.qin.agy/files/usr/bin:$PATH"
 fi
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
@@ -68,18 +68,18 @@ if [ -n "$CUSTOM_OUT" ]; then
 elif [ "$DEV_MODE" = "1" ]; then
     if [ "$NO_BYPASS" = "0" ]; then
         OUT_APK="$DIST_DIR/${BASE_PREFIX}-dev-region-bypass.apk"
-        EDITION_LABEL="DEV EDITION WITH REGION BYPASS (com.agy.dev, port 45158, debuggable)"
+        EDITION_LABEL="DEV EDITION WITH REGION BYPASS (com.qin.agy.dev, port 45168, debuggable)"
     else
         OUT_APK="$DIST_DIR/${BASE_PREFIX}-dev.apk"
-        EDITION_LABEL="DEV EDITION STANDARD (com.agy.dev, port 45158, debuggable, standard gates)"
+        EDITION_LABEL="DEV EDITION STANDARD (com.qin.agy.dev, port 45168, debuggable, standard gates)"
     fi
 else
     if [ "$NO_BYPASS" = "0" ]; then
         OUT_APK="$DIST_DIR/${BASE_PREFIX}-region-bypass.apk"
-        EDITION_LABEL="RELEASE EDITION WITH REGION BYPASS (com.agy, port 45157, with account eligibility bypass)"
+        EDITION_LABEL="RELEASE EDITION WITH REGION BYPASS (com.qin.agy, port 45167, with account eligibility bypass)"
     else
         OUT_APK="$DIST_DIR/${BASE_PREFIX}.apk"
-        EDITION_LABEL="RELEASE EDITION STANDARD (com.agy, port 45157, original gates)"
+        EDITION_LABEL="RELEASE EDITION STANDARD (com.qin.agy, port 45167, original gates)"
     fi
 fi
 
@@ -138,9 +138,14 @@ python3 "$SCRIPT_DIR/05_stage_assets.py" "$BUILD_DIR/staging" "${STAGE_FLAGS[@]}
 echo -e "\n>>> [6/8] Packaging Unaligned APK..."
 bash "$SCRIPT_DIR/06_package.sh" "$BUILD_DIR/unaligned.apk" "$TARGET_MANIFEST" "$APP_DIR/src/main/res" "$TOOLS_DIR/android.jar" "$BUILD_DIR/staging/assets" "$BUILD_DIR/dex/classes.dex" "$BUILD_DIR/res"
 
-# Phase 07: ZipAlign
+# Phase 07: ZipAlign (prefer the system binary; the pure-Python aligner is
+# only a fallback for environments without Android SDK build-tools)
 echo -e "\n>>> [7/8] ZipAligning APK..."
-python3 "$SCRIPT_DIR/align.py" "$BUILD_DIR/unaligned.apk" "$BUILD_DIR/aligned.apk" 4
+if command -v zipalign >/dev/null 2>&1; then
+    zipalign -f 4 "$BUILD_DIR/unaligned.apk" "$BUILD_DIR/aligned.apk"
+else
+    python3 "$SCRIPT_DIR/align.py" "$BUILD_DIR/unaligned.apk" "$BUILD_DIR/aligned.apk" 4
+fi
 
 # Phase 08: Sign and Verify APK
 echo -e "\n>>> [8/8] Signing and Verifying APK..."

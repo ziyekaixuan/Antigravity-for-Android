@@ -17,12 +17,41 @@ if MODULES_ENV_DIR not in sys.path:
     sys.path.insert(0, MODULES_ENV_DIR)
 
 try:
-    from bridge.client import resolve_gateway_url
+    from bridge.client import resolve_gateway_url, resolve_gateway_token
 except ImportError:
     try:
-        from modules.env.bridge.client import resolve_gateway_url
+        from modules.env.bridge.client import resolve_gateway_url, resolve_gateway_token
     except ImportError:
         resolve_gateway_url = None
+        resolve_gateway_token = None
+
+
+def _fallback_gateway_token():
+    home = os.environ.get("HOME")
+    candidates = []
+    if home:
+        candidates.append(os.path.join(home, "logs", "gateway.token"))
+    candidates.extend([
+        "/data/user/0/com.qin.agy.dev/files/logs/gateway.token",
+        "/data/user/0/com.qin.agy/files/logs/gateway.token",
+    ])
+    for pfile in candidates:
+        if os.path.isfile(pfile):
+            try:
+                with open(pfile, "r") as f:
+                    token = f.read().strip()
+                    if token:
+                        return token
+            except Exception:
+                pass
+    return None
+
+
+def get_gateway_token():
+    if resolve_gateway_token:
+        return resolve_gateway_token()
+    return _fallback_gateway_token()
+
 
 def get_gateway_base():
     if resolve_gateway_url:
@@ -34,8 +63,8 @@ def get_gateway_base():
     if home:
         candidates.append(os.path.join(home, "logs", "gateway.port"))
     candidates.extend([
-        "/data/user/0/com.agy.dev/files/logs/gateway.port",
-        "/data/user/0/com.agy/files/logs/gateway.port"
+        "/data/user/0/com.qin.agy.dev/files/logs/gateway.port",
+        "/data/user/0/com.qin.agy/files/logs/gateway.port"
     ])
     for pfile in candidates:
         if os.path.isfile(pfile):
@@ -46,8 +75,9 @@ def get_gateway_base():
                         return f"http://127.0.0.1:{p}/gateway"
             except Exception:
                 pass
-    is_dev = os.environ.get("DEV_MODE") == "1" or os.environ.get("AGY_APPLICATION_ID") == "com.agy.dev"
-    return "http://127.0.0.1:45161/gateway" if is_dev else "http://127.0.0.1:45160/gateway"
+    is_dev = os.environ.get("DEV_MODE") == "1" or os.environ.get("AGY_APPLICATION_ID") == "com.qin.agy.dev"
+    # Fallback ports must match GATEWAY_PORT / GATEWAY_PORT_DEV in config/app.env.
+    return "http://127.0.0.1:45171/gateway" if is_dev else "http://127.0.0.1:45170/gateway"
 
 GATEWAY_BASE = get_gateway_base()
 GATEWAY_LOGS_URL = f"{GATEWAY_BASE}/logs"
@@ -66,7 +96,11 @@ CLR_GRAY = "\033[90m"
 
 def fetch_from_gateway(url):
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "agy-logs"})
+        headers = {"User-Agent": "agy-logs"}
+        token = get_gateway_token()
+        if token:
+            headers["Authorization"] = "Bearer " + token
+        req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=1.0) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except Exception:
@@ -86,13 +120,13 @@ def _find_commands_log():
     except Exception:
         pass
     candidates.extend([
-        "/data/user/0/com.agy.dev/files/logs/commands.jsonl",
-        "/data/user/0/com.agy/files/logs/commands.jsonl"
+        "/data/user/0/com.qin.agy.dev/files/logs/commands.jsonl",
+        "/data/user/0/com.qin.agy/files/logs/commands.jsonl"
     ])
     for p in candidates:
         if os.path.isfile(p):
             return p
-    return candidates[0] if candidates else "/data/user/0/com.agy/files/logs/commands.jsonl"
+    return candidates[0] if candidates else "/data/user/0/com.qin.agy/files/logs/commands.jsonl"
 
 
 def read_file_fallback(max_lines=50):
@@ -110,9 +144,9 @@ def read_file_fallback(max_lines=50):
         pass
     candidates.extend([
         os.path.expanduser("~/.gemini/logs/core.log"),
-        "/data/user/0/com.agy.dev/files/logs/core.log",
-        "/data/user/0/com.agy/files/logs/core.log",
-        "/data/user/0/com.agy/files/standalone_runtime/core_output.log"
+        "/data/user/0/com.qin.agy.dev/files/logs/core.log",
+        "/data/user/0/com.qin.agy/files/logs/core.log",
+        "/data/user/0/com.qin.agy/files/standalone_runtime/core_output.log"
     ])
     for path in candidates:
         if os.path.isfile(path):
@@ -162,8 +196,8 @@ def show_crash(as_json=False):
         except Exception:
             pass
         crashes_dirs.extend([
-            "/data/user/0/com.agy.dev/files/logs/crashes",
-            "/data/user/0/com.agy/files/logs/crashes"
+            "/data/user/0/com.qin.agy.dev/files/logs/crashes",
+            "/data/user/0/com.qin.agy/files/logs/crashes"
         ])
         for crashes_dir in crashes_dirs:
             if os.path.isdir(crashes_dir):

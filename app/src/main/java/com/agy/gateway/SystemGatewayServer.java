@@ -18,23 +18,39 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Lightweight embedded HTTP Server listening strictly on 127.0.0.1:45158.
+ * Lightweight embedded HTTP Server listening strictly on 127.0.0.1.
  * Zero external dependencies; exposes the Android System Gateway to the Linux/agent layer.
+ *
+ * <p>Authentication: every request must carry {@code Authorization: Bearer &lt;token&gt;}.
+ * The token is a per-process random value written to the app-private
+ * {@code logs/gateway.token} file (same UID only); the agent layer reads it the
+ * same way it reads {@code logs/gateway.port}. Without it, any app on the
+ * device could reach this loopback server and execute shell commands.
  */
 public final class SystemGatewayServer {
 
     private static final String TAG = "SystemGateway";
-    public static final int DEFAULT_PORT = 45160;
+    /** Must match GATEWAY_PORT in config/app.env (single source of truth). */
+    public static final int DEFAULT_PORT = 45170;
 
     private final Context context;
     private int port;
     private final GatewayDispatcher dispatcher;
     private final LogRingBuffer logBuffer;
-    private final ExecutorService executor = Executors.newFixedThreadPool(4);
+    private final String authToken = createAuthToken();
+    // Bounded queue: an unauthenticated flood must not OOM the process.
+    private final ExecutorService executor = new ThreadPoolExecutor(
+            4, 4, 0L, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<Runnable>(64),
+            new ThreadPoolExecutor.DiscardPolicy());
 
     private volatile boolean running = false;
     private ServerSocket serverSocket;
@@ -73,6 +89,10 @@ public final class SystemGatewayServer {
                     File pFile = new File(context.getFilesDir(), "logs/gateway.port");
                     if (pFile.getParentFile() != null) pFile.getParentFile().mkdirs();
                     com.agy.util.AtomicFileWriter.writeText(pFile, String.valueOf(port) + "\n");
+                    // App-private token file: only this UID (app + its core
+                    // processes) can read it. Never log the token.
+                    File tFile = new File(context.getFilesDir(), "logs/gateway.token");
+                    com.agy.util.AtomicFileWriter.writeText(tFile, authToken + "\n");
                 } catch (Throwable ignored) {}
 
                 while (running && !serverSocket.isClosed()) {
@@ -123,11 +143,27 @@ public final class SystemGatewayServer {
             String path = parts[1];
 
             int contentLength = 0;
+            String authHeader = null;
             String line;
             while ((line = readHeaderLine(in)) != null && !line.isEmpty()) {
                 if (line.toLowerCase().startsWith("content-length:")) {
                     contentLength = Integer.parseInt(line.substring(15).trim());
+                } else if (line.toLowerCase().startsWith("authorization:")) {
+                    authHeader = line.substring("authorization:".length()).trim();
                 }
+            }
+
+            if (!isAuthorized(authHeader)) {
+                byte[] denied = "{\"ok\":false,\"error\":\"unauthorized\"}"
+                        .getBytes(StandardCharsets.UTF_8);
+                String denyHeader = "HTTP/1.1 401 Unauthorized\r\n"
+                        + "Content-Type: application/json; charset=utf-8\r\n"
+                        + "Content-Length: " + denied.length + "\r\n"
+                        + "Connection: close\r\n\r\n";
+                out.write(denyHeader.getBytes(StandardCharsets.UTF_8));
+                out.write(denied);
+                out.flush();
+                return;
             }
 
             if (contentLength < 0) {
@@ -188,6 +224,37 @@ public final class SystemGatewayServer {
         } catch (Exception e) {
             Log.d(TAG, "client error: " + e.getMessage());
         }
+    }
+
+    /** Constant-time bearer-token check (same pattern as AndroidBridge). */
+    private boolean isAuthorized(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return false;
+        }
+        String candidate = authHeader.substring("Bearer ".length()).trim();
+        if (candidate.isEmpty()) {
+            return false;
+        }
+        try {
+            byte[] expected = authToken.getBytes(StandardCharsets.UTF_8);
+            byte[] actual = candidate.getBytes(StandardCharsets.UTF_8);
+            return MessageDigest.isEqual(expected, actual);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static String createAuthToken() {
+        byte[] random = new byte[32];
+        new SecureRandom().nextBytes(random);
+        char[] hex = "0123456789abcdef".toCharArray();
+        char[] encoded = new char[random.length * 2];
+        for (int i = 0; i < random.length; i++) {
+            int value = random[i] & 0xff;
+            encoded[i * 2] = hex[value >>> 4];
+            encoded[i * 2 + 1] = hex[value & 0x0f];
+        }
+        return new String(encoded);
     }
 
     private static final int MAX_HEADER_LINE_BYTES = 8192;

@@ -1,4 +1,4 @@
-#!/data/data/com.agy/files/usr/bin/bash
+#!/data/data/com.qin.agy/files/usr/bin/bash
 # db.sh -- installed-package database. One .meta + one .files per package.
 
 db_meta()  { printf '%s/%s.meta'  "$PKG_DB" "$1"; }

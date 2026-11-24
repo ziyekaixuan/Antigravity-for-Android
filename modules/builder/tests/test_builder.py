@@ -74,7 +74,8 @@ class TestBuilder(unittest.TestCase):
         android_jar = os.path.join(tools_dir, "android.jar")
         res_dir = os.path.join(project_root, "app", "src", "main", "res")
 
-        # Test release mode (com.agy) -> single call
+        # Test release mode (com.qin.agy): manifest package differs from the
+        # com.agy code package, so the fallback com.agy.R is generated too.
         build_dir = os.path.join(self.tmp_dir, "build_rel")
         cmd_cfg = [sys.executable, os.path.join(BUILDER_DIR, "01_gen_config.py"), build_dir]
         subprocess.run(cmd_cfg, check=True, cwd=project_root)
@@ -85,10 +86,11 @@ class TestBuilder(unittest.TestCase):
         cmd_r = ["bash", os.path.join(BUILDER_DIR, "02_r_java.sh"), gen_dir, manifest, res_dir, android_jar, overlay_res]
         res = subprocess.run(cmd_r, capture_output=True, text=True)
         self.assertEqual(res.returncode, 0, res.stderr)
-        self.assertNotIn("Generating fallback com.agy.R", res.stdout)
+        self.assertIn("Generating fallback com.agy.R", res.stdout)
         self.assertTrue(os.path.isfile(os.path.join(gen_dir, "com", "agy", "R.java")))
+        self.assertTrue(os.path.isfile(os.path.join(gen_dir, "com", "qin", "agy", "R.java")))
 
-        # Test dev mode (com.agy.dev) -> generates both com.agy.dev.R and fallback com.agy.R
+        # Test dev mode (com.qin.agy.dev) -> generates both com.qin.agy.dev.R and fallback com.agy.R
         build_dir_dev = os.path.join(self.tmp_dir, "build_dev")
         subprocess.run(cmd_cfg[:2] + [build_dir_dev], check=True, cwd=project_root, env={**os.environ, "DEV_MODE": "1"})
         gen_dir_dev = os.path.join(build_dir_dev, "gen")
@@ -100,7 +102,7 @@ class TestBuilder(unittest.TestCase):
         self.assertEqual(res_dev.returncode, 0, res_dev.stderr)
         self.assertIn("Generating fallback com.agy.R", res_dev.stdout)
         self.assertTrue(os.path.isfile(os.path.join(gen_dir_dev, "com", "agy", "R.java")))
-        self.assertTrue(os.path.isfile(os.path.join(gen_dir_dev, "com", "agy", "dev", "R.java")))
+        self.assertTrue(os.path.isfile(os.path.join(gen_dir_dev, "com", "qin", "agy", "dev", "R.java")))
 
     def test_03_and_04_compile_and_dex_argfile(self):
         import subprocess

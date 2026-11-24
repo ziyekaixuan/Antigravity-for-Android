@@ -1,4 +1,4 @@
-#!/data/data/com.agy/files/usr/bin/bash
+#!/data/data/com.qin.agy/files/usr/bin/bash
 # resolver.sh -- strict dependency closure and install-order resolution.
 # Requires index_lookup, index_provider, db_exists and deb_vercmp.
 

@@ -46,6 +46,7 @@ public final class EnvInstaller {
         AssetManager assets = ctx.getAssets();
         File prefix = prefix(ctx);
         validatePrefixLocation(ctx, prefix);
+        cleanupStaleQuarantines(ctx, prefix);
 
         EnvBundleManifest manifest = EnvBundleManifest.load(assets);
         String bootstrapAsset = AssetPicker.pick(assets, EnvPaths.ASSET_BOOTSTRAP, EnvPaths.ASSET_BOOTSTRAP_PLAIN);
@@ -308,6 +309,36 @@ public final class EnvInstaller {
         if (quarantined != null && quarantined.exists() && !prefix.exists()
                 && !quarantined.renameTo(prefix)) {
             Log.e(TAG, "cannot restore preserved prefix " + quarantined + " -> " + prefix);
+        }
+    }
+
+    /**
+     * Removes quarantined prefixes from earlier failed installs. Each can be
+     * hundreds of MB; only the newest one of each kind is kept for diagnosis.
+     * Never throws: cleanup must not break startup.
+     */
+    private static void cleanupStaleQuarantines(Context context, File prefix) {
+        try {
+            File parent = prefix.getParentFile();
+            if (parent == null || !parent.isDirectory()) {
+                return;
+            }
+            File filesDir = context.getFilesDir();
+            String[] kinds = {".usr-incomplete-", ".usr-failed-", ".usr-stage-"};
+            for (String kind : kinds) {
+                File[] matches = parent.listFiles((dir, name) -> name.startsWith(kind));
+                if (matches == null || matches.length <= 1) {
+                    continue;
+                }
+                java.util.Arrays.sort(matches, (a, b) ->
+                        Long.compare(b.lastModified(), a.lastModified()));
+                for (int i = 1; i < matches.length; i++) {
+                    Log.i(TAG, "removing stale quarantined prefix: " + matches[i]);
+                    deleteTreeQuietly(matches[i], filesDir);
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "quarantine cleanup failed (ignored): " + e.getMessage());
         }
     }
 

@@ -24,6 +24,11 @@ import java.util.concurrent.TimeUnit;
 public final class ExecHandler {
 
     private static final String TAG = "ExecHandler";
+    /** Per-stream output cap: unbounded command output used to OOM the process. */
+    private static final int MAX_OUTPUT_CHARS = 1024 * 1024;
+    /** Callers may not request a longer run than this. */
+    private static final long MAX_TIMEOUT_MS = 10 * 60 * 1000L;
+    private static final long DEFAULT_TIMEOUT_MS = 30000L;
     private final Context context;
     private final CommandHistory history;
     private final LogRingBuffer logBuffer;
@@ -37,7 +42,12 @@ public final class ExecHandler {
     public JSONObject handle(JSONObject payload) {
         String cmd = payload.optString("cmd", "").trim();
         String source = payload.optString("source", "agent");
-        long timeoutMs = payload.optLong("timeout_ms", 30000);
+        long timeoutMs = payload.optLong("timeout_ms", DEFAULT_TIMEOUT_MS);
+        if (timeoutMs <= 0) {
+            timeoutMs = DEFAULT_TIMEOUT_MS;
+        } else if (timeoutMs > MAX_TIMEOUT_MS) {
+            timeoutMs = MAX_TIMEOUT_MS;
+        }
         boolean useRish = payload.optBoolean("rish", false);
         String cwdPath = payload.optString("cwd", context.getFilesDir().getAbsolutePath());
 
@@ -101,6 +111,11 @@ public final class ExecHandler {
                 status = (exitCode == 0) ? "SUCCESS" : "FAILED";
             } else {
                 proc.destroy();
+                if (!proc.waitFor(2000, TimeUnit.MILLISECONDS)) {
+                    proc.destroyForcibly();
+                }
+                outThread.interrupt();
+                errThread.interrupt();
                 status = "TIMEOUT";
                 stderrBuf.append("\n[Process timed out after ").append(timeoutMs).append("ms]");
             }
@@ -140,7 +155,18 @@ public final class ExecHandler {
     private static void drainStream(InputStream in, StringBuilder out) {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
             String line;
+            boolean truncated = false;
             while ((line = reader.readLine()) != null) {
+                // Keep draining (a full pipe would block the child) but stop
+                // buffering past the cap.
+                if (truncated) {
+                    continue;
+                }
+                if (out.length() + line.length() + 1 > MAX_OUTPUT_CHARS) {
+                    out.append("\n[output truncated at ").append(MAX_OUTPUT_CHARS).append(" chars]");
+                    truncated = true;
+                    continue;
+                }
                 if (out.length() > 0) {
                     out.append("\n");
                 }

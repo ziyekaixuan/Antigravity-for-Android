@@ -20,7 +20,7 @@ public final class DiagnosticsActivity extends Activity {
         super.onCreate(savedInstanceState);
         try {
             LogExporter.copyToClipboard(this);
-            Toast.makeText(this, "诊断日志已复制，去粘贴发给琳琳", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "诊断日志已复制到剪贴板", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             Toast.makeText(this, "复制失败：" + e.getMessage(), Toast.LENGTH_LONG).show();
         }

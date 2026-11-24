@@ -1,178 +1,178 @@
-# Архитектура Android-слоя Antigravity (`app/`)
+# Antigravity Android 层架构（`app/`）
 
-Модуль `app/` представляет собой нативный Android-хост (Native Host Shell) для среды **Antigravity v2.4+ (Android ARM64, Bionic + Glibc userspace, targetSdk 28 / minSdk 24)**. 
+模块 `app/` 是 **Antigravity v2.4+（Android ARM64，Bionic + Glibc 用户空间，targetSdk 28 / minSdk 24）** 环境的原生 Android 宿主（Native Host Shell）。
 
-Хост отвечает за запуск и супервизию Go-ядра `language_server`, предоставление защищенного UI-контейнера на базе Chromium WebView, локальный HTTP-шлюз системных функций (System Gateway Server) и интеграцию с платформой Android (уведомления, энергосбережение, буфер обмена, хранилище, Shizuku/rish).
+宿主负责启动与监管 Go 核心 `language_server`、提供基于 Chromium WebView 的受保护 UI 容器、本地系统功能 HTTP 网关（System Gateway Server），以及与 Android 平台的集成（通知、省电、剪贴板、存储、Shizuku/rish）。
 
 ---
 
-## 1. Общая архитектура компонентов
+## 1. 组件总体架构
 
 ```mermaid
 graph TD
-    subgraph UI_Layer ["Слой представления (UI Layer)"]
+    subgraph UI_Layer ["表现层 (UI Layer)"]
         LDA["LauncherDarkActivity / LauncherLightActivity"] --> MA["MainActivity"]
         MA --> SC["SplashController (NativeSplashDotsView / Lazy WebView)"]
         MA --> WVH["WebViewHost (Chromium WebView)"]
-        WVH --> AWVC["AgyWebViewClient (OAuth & Asset Interceptor)"]
-        WVH --> AWCC["AgyWebChromeClient (Console, Files, Popups)"]
-        WVH --> LAS["LocalAssetServer (Внутрипроцессная раздача files/web/)"]
-        WVH --> AHI["AppHtmlInjector (Инжекция __APP_CONFIG__ и токенов)"]
+        WVH --> AWVC["AgyWebViewClient (OAuth 与资源拦截器)"]
+        WVH --> AWCC["AgyWebChromeClient (控制台、文件、弹窗)"]
+        WVH --> LAS["LocalAssetServer (进程内分发 files/web/)"]
+        WVH --> AHI["AppHtmlInjector (注入 __APP_CONFIG__ 与令牌)"]
     end
 
-    subgraph Bridge_Layer ["Bridge & Security"]
+    subgraph Bridge_Layer ["桥接与安全"]
         MA --> AB["AndroidBridge (JavascriptInterface 'Android')"]
-        AB --> UB["UiBridge (onUiReady, fatal errors, desktop mode)"]
-        AB --> TB["ThemeBridge (Синхронизация тем)"]
-        AB --> EB["EngineBridge (Статус и параметры ядра)"]
-        AB --> ECJ["EngineConfigJson (Сериализация конфигурации)"]
+        AB --> UB["UiBridge (onUiReady、致命错误、桌面模式)"]
+        AB --> TB["ThemeBridge (主题同步)"]
+        AB --> EB["EngineBridge (核心状态与参数)"]
+        AB --> ECJ["EngineConfigJson (配置序列化)"]
     end
 
-    subgraph Core_Layer ["Фоновые сервисы и супервизия (Core Layer)"]
-        CSS["CoreServerService (Foreground Service + WakeLock)"]
-        CSS --> CPS["CoreProcessSupervisor (Управление жизненным циклом ядра)"]
-        CPS --> CL["CoreLauncher (Установка фазы 1 и запуск процесса)"]
-        CPS --> CRP["CoreReadyProbe (Зондирование https://127.0.0.1:port)"]
-        CPS --> OUW["OpenUrlWatcher (Перехват OAuth/URL из stdout потока)"]
-        CPS --> LS["Процесс language_server (Glibc / ARM64)"]
-        CSS --> AGD["Фоновый демон agy-daemon (CLI Task Engine)"]
+    subgraph Core_Layer ["后台服务与监管 (Core Layer)"]
+        CSS["CoreServerService (前台服务 + WakeLock)"]
+        CSS --> CPS["CoreProcessSupervisor (核心生命周期管理)"]
+        CPS --> CL["CoreLauncher (阶段 1 安装与进程启动)"]
+        CPS --> CRP["CoreReadyProbe (探测 https://127.0.0.1:port)"]
+        CPS --> OUW["OpenUrlWatcher (从 stdout 流中拦截 OAuth/URL)"]
+        CPS --> LS["language_server 进程 (Glibc / ARM64)"]
+        CSS --> AGD["后台守护进程 agy-daemon (CLI 任务引擎)"]
     end
 
-    subgraph Gateway_Layer ["Системный шлюз (System Gateway)"]
-        CSS --> SGS["SystemGatewayServer (HTTP Server на 127.0.0.1:45161)"]
+    subgraph Gateway_Layer ["系统网关 (System Gateway)"]
+        CSS --> SGS["SystemGatewayServer (HTTP 服务器，监听 127.0.0.1:45171)"]
         SGS --> GD["GatewayDispatcher"]
-        GD --> NH["NotificationHandler (Каналы задач и алертов)"]
-        GD --> BH["BrowserHandler (Открытие системного браузера)"]
-        GD --> PH["PowerHandler (Управление частичными WakeLock)"]
-        GD --> CH["ClipboardHandler (Чтение/запись системного буфера)"]
-        GD --> DH["DeviceHandler (Батарея, сеть, вибро, тосты)"]
-        GD --> EH["ExecHandler (Локальное выполнение команд и rish)"]
+        GD --> NH["NotificationHandler (任务与提醒通道)"]
+        GD --> BH["BrowserHandler (打开系统浏览器)"]
+        GD --> PH["PowerHandler (管理部分 WakeLock)"]
+        GD --> CH["ClipboardHandler (读写系统剪贴板)"]
+        GD --> DH["DeviceHandler (电池、网络、振动、Toast)"]
+        GD --> EH["ExecHandler (本地命令执行与 rish)"]
     end
 
-    subgraph Platform_Layer ["Интеграция с Android"]
+    subgraph Platform_Layer ["Android 平台集成"]
         AFP["AppFileProvider (${applicationId}.fileprovider)"]
-        DCH["DocumentsContractHelper (Преобразование SAF в /storage/...)"]
+        DCH["DocumentsContractHelper (将 SAF 转换为 /storage/...)"]
         SHB["ShizukuBridge / RishExecutor (ADB Shell uid=2000)"]
-        LIS["LauncherIconSwitcher (Динамическая смена иконки)"]
+        LIS["LauncherIconSwitcher (动态切换图标)"]
     end
 
     WVH -.->|JS Call| AB
     LS -.->|Stdout Stream| OUW
     AGD -.->|JSON over HTTP| SGS
-    NH -.->|Android Notifications| Platform_Layer
-    EH -.->|Elevated Shell| SHB
+    NH -.->|Android 通知| Platform_Layer
+    EH -.->|提权 Shell| SHB
 ```
 
 ---
 
-## 2. Ключевые подсистемы
+## 2. 关键子系统
 
-### 2.1. Фоновые сервисы и управление ядром (`com.agy.core`)
+### 2.1. 后台服务与核心管理（`com.qin.agy.core`）
 
-Ядро системы (`language_server`) компилируется под Linux/Glibc и выполняется в окружении Android через кастомный загрузчик `libloader.so` с эмуляцией инструкций LSE (`liblse_compat.so`).
+系统核心（`language_server`）编译为 Linux/Glibc 程序，通过自定义加载器 `libloader.so` 并借助 LSE 指令模拟（`liblse_compat.so`）在 Android 环境中运行。
 
-- **`CoreServerService`**: 
-  - Запускается как `ForegroundService` с типом `dataSync` и иконкой в трее (`ForegroundNotification`).
-  - Удерживает CPU WakeLock (`WakeLockHolder`) с флагом `PARTIAL_WAKE_LOCK`, гарантируя непрерывную работу агента при выключенном экране.
-  - Управляет жизненным циклом супервизора ядра, HTTP Gateway и фонового демона `agy-daemon`.
+- **`CoreServerService`**:
+  - 以 `dataSync` 类型的 `ForegroundService` 运行，托盘中有图标（`ForegroundNotification`）。
+  - 持有带 `PARTIAL_WAKE_LOCK` 标志的 CPU WakeLock（`WakeLockHolder`），保证息屏时智能体持续工作。
+  - 管理核心监管器、HTTP 网关和后台守护进程 `agy-daemon` 的生命周期。
 - **`CoreLauncher`**:
-  - Управляет установкой фазы 1 (распаковка и верификация ядра) и запуском нативного процесса.
-  - Содержит `killOrphanCoreProcesses()`: сканирует `/proc` и принудительно завершает (`SIGKILL`) любые зависшие orphan-процессы `language_server` от предыдущих сессий перед стартом, исключая ошибку `EADDRINUSE` (`listen: address already in use`) на фиксированных loopback-портах 45157/45158.
+  - 管理阶段 1 的安装（核心解包与校验）与原生进程的启动。
+  - 包含 `killOrphanCoreProcesses()`：扫描 `/proc`，在启动前强制终止（`SIGKILL`）此前会话遗留的任何挂起的孤儿 `language_server` 进程，避免在固定 loopback 端口 45167/45168 上出现 `EADDRINUSE`（`listen: address already in use`）错误。
 - **`CoreProcessSupervisor`**:
-  - Запускает ядро в выделенном рабочем потоке (`CoreServerThread`).
-  - Непрерывно стримит объединенный поток stdout/stderr в `files/logs/core.log` и кольцевой буфер `LogRingBuffer`.
-  - Реализует политику самовосстановления (`CoreRestartPolicy`): экспоненциальный backoff при неожиданном падении (до 3 перезапусков). Если ядро проработало стабильно более 60 секунд (`SUSTAINED_READY_MS`), счетчик падений обнуляется.
-  - При фатальных ошибках фиксирует детальный стек в `CrashRecorder`.
+  - 在专用工作线程（`CoreServerThread`）中启动核心。
+  - 持续将合并的 stdout/stderr 流写入 `files/logs/core.log` 和环形缓冲区 `LogRingBuffer`。
+  - 实现自恢复策略（`CoreRestartPolicy`）：意外崩溃时指数退避重试（最多 3 次重启）。若核心稳定运行超过 60 秒（`SUSTAINED_READY_MS`），崩溃计数器清零。
+  - 发生致命错误时，在 `CrashRecorder` 中记录详细堆栈。
 - **`CoreReadyProbe`**:
-  - Выполняет опрос готовности локального HTTPS порта с таймаутом до 60 секунд (`READY_TIMEOUT_MS = 60000`) для стабильного первого холодного запуска на процессорах ARMv8.0-A (Snapdragon 660 и др.).
-  - Выполняет криптографический Certificate Pinning по SHA-256 дайджесту сертификата `@raw/agy_core_cert`.
+  - 轮询本地 HTTPS 端口的就绪状态，超时最长 60 秒（`READY_TIMEOUT_MS = 60000`），以保证在 ARMv8.0-A 处理器（Snapdragon 660 等）上首次冷启动稳定。
+  - 按 `@raw/agy_core_cert` 证书的 SHA-256 摘要执行加密证书固定（Certificate Pinning）。
 - **`OpenUrlWatcher`**:
-  - Решает проблему перехвата OAuth-авторизации Google (Google блокирует авторизацию внутри встроенного WebView).
-  - Считывает строки вывода `language_server` в реальном времени, выявляя маркеры `AGY_OPEN_URL=`, `ANTIGRAVITY_OPEN_URL:` и ссылки `accounts.google.com`.
-  - Перенаправляет пользователя в дефолтный внешний браузер через `CustomTabLauncher`.
-  - Также слушает защищенный broadcast `com.agy.ACTION_OPEN_URL`.
+  - 解决 Google OAuth 授权拦截问题（Google 会阻止在内置 WebView 内授权）。
+  - 实时读取 `language_server` 的输出行，识别 `AGY_OPEN_URL=`、`ANTIGRAVITY_OPEN_URL:` 标记和 `accounts.google.com` 链接。
+  - 通过 `CustomTabLauncher` 将用户重定向到默认外部浏览器。
+  - 同时监听受保护广播 `com.qin.agy.ACTION_OPEN_URL`。
 
-### 2.2. WebView, UI и загрузка приложения (`com.agy.ui`)
+### 2.2. WebView、UI 与应用加载（`com.qin.agy.ui`）
 
-- **Двухфазная схема запуска (Splash & Ready Flow)**:
-  1. `MainActivity` стартует с нативным Canvas-экраном (`NativeSplashDotsView`), не инициализируя тяжелый Chromium WebView для анимации трех точек (экономия ~40 МБ RAM).
-  2. Параллельно `CoreServerService` распаковывает ядро и ожидает готовности локального HTTPS порта (зонд `CoreReadyProbe`).
-  3. После ответа порта `WebViewHost.loadApp()` инжектирует HTML и конфигурацию.
-  4. Скрытие сплэша происходит только по сигналу первого рендера из JavaScript (`window.Android.onUiReady()`), исключая мерцание белого экрана.
-- **`LocalAssetServer`**:
-  - Перехватывает вызовы `shouldInterceptRequest` в `AgyWebViewClient` для Same-Origin адреса `https://127.0.0.1:<port>/*`.
-  - Статические файлы (`files/web/*`) отдаются напрямую из локального кэша приложения в памяти, не нагружая Go-сервер ядра. RPC и веб-сокеты (`/exa.*`, `/jetski.*`, streaming) прозрачно пропускаются к ядру.
-- **`AppHtmlInjector`**:
-  - Внедряет в `<head>` веб-бандла строгую директиву Content-Security-Policy (CSP).
-  - Инициализирует глобальные объекты `window.__APP_CONFIG__`, `window.__AG_ENDPOINTS__`, `window.__AG_CSRF__` и одноразовый криптографический токен `blobBridgeToken`.
-- **Файловый пикер и загрузки (`FileDownloader`)**:
-  - Обрабатывает загрузки обычных файлов и Base64 Blobs (`saveBlob`).
-  - Поддерживает выбор файлов и папок через Storage Access Framework (SAF) и сохранение персистентных разрешений (`takePersistableUriPermission`).
+- **两阶段启动方案（Splash 与 Ready 流程）**：
+  1. `MainActivity` 以原生 Canvas 启动屏（`NativeSplashDotsView`）启动，不初始化沉重的 Chromium WebView 来播放三点动画（节省约 40 MB 内存）。
+  2. 与此同时，`CoreServerService` 解包核心并等待本地 HTTPS 端口就绪（`CoreReadyProbe` 探测）。
+  3. 端口响应后，`WebViewHost.loadApp()` 注入 HTML 与配置。
+  4. 只有在收到 JavaScript 发来的首次渲染信号（`window.Android.onUiReady()`）后才隐藏启动屏，避免白屏闪烁。
+- **`LocalAssetServer`**：
+  - 在 `AgyWebViewClient` 中拦截针对同源地址 `https://127.0.0.1:<port>/*` 的 `shouldInterceptRequest` 调用。
+  - 静态文件（`files/web/*`）直接从应用本地内存缓存提供，不给 Go 核心服务器增加负担。RPC 与 WebSocket（`/exa.*`、`/jetski.*`、流式传输）透明透传给核心。
+- **`AppHtmlInjector`**：
+  - 在 Web Bundle 的 `<head>` 中注入严格的 Content-Security-Policy（CSP）指令。
+  - 初始化全局对象 `window.__APP_CONFIG__`、`window.__AG_ENDPOINTS__`、`window.__AG_CSRF__` 以及一次性加密令牌 `blobBridgeToken`。
+- **文件选择器与下载（`FileDownloader`）**：
+  - 处理普通文件和 Base64 Blob（`saveBlob`）的下载。
+  - 支持通过 Storage Access Framework（SAF）选择文件和文件夹，并保存持久权限（`takePersistableUriPermission`）。
 
-### 2.3. Системный шлюз (`com.agy.gateway`)
+### 2.3. 系统网关（`com.qin.agy.gateway`）
 
-Встроенный высокопроизводительный HTTP-сервер (`SystemGatewayServer`), слушающий строго на `127.0.0.1:45161` (с авто-фоллбэком на порт `+2` при занятости). Номер порта сохраняется в `files/logs/gateway.port`.
+内置高性能 HTTP 服务器（`SystemGatewayServer`），严格监听 `127.0.0.1:45171`（占用时自动回退到 `+2` 端口）。端口号保存在 `files/logs/gateway.port`。
 
-Шлюз обеспечивает мост между окружением Linux (bash-скрипты, CLI-утилиты `agy-notify`, `agy-daemon`) и нативными Android API:
+网关在 Linux 环境（bash 脚本、CLI 工具 `agy-notify`、`agy-daemon`）与原生 Android API 之间架起桥梁：
 
-| Команда | Обработчик | Описание |
+| 命令 | 处理器 | 说明 |
 | :--- | :--- | :--- |
-| `notify` | `NotificationHandler` | Публикация, обновление прогресса и отмена Android-уведомлений в каналах `agy_tasks` и `agy_alerts`. |
-| `open_url` | `BrowserHandler` | Открытие внешних ссылок и системных документов через `UriDispatcher`. |
-| `wakelock` | `PowerHandler` | Захват и освобождение именованных частичных WakeLock'ов для длительных скриптов. |
-| `clipboard` / `clipboard_set` | `ClipboardHandler` | Асинхронное чтение и запись в системный буфер обмена на UI-потоке. |
-| `system_info` | `DeviceHandler` | Сбор телеметрии: уровень заряда батареи, статус зарядки, тип сети, свободная память и диск. |
-| `vibrate` | `DeviceHandler` | Тактильный отклик (Haptic Feedback) заданной длительности. |
-| `toast` | `DeviceHandler` | Отображение нативных всплывающих сообщений (Toast). |
-| `exec` | `ExecHandler` | Выполнение команд в шелле (`/system/bin/sh` или повышенный `rish` через Shizuku) с таймаутом и захватом потоков. |
-| `/gateway/status` | `SystemGatewayServer` | Проверка состояния шлюза (health check). |
-| `/gateway/logs` | `SystemGatewayServer` | Чтение последних строк системного лога из кольцевого буфера памяти. |
-| `/gateway/commands` | `SystemGatewayServer` | История выполненных шлюзом команд и их статусов. |
-| `/gateway/crash` | `SystemGatewayServer` | Диагностический снимок последнего падения ядра. |
+| `notify` | `NotificationHandler` | 在 `agy_tasks` 和 `agy_alerts` 通道中发布、更新进度和取消 Android 通知。 |
+| `open_url` | `BrowserHandler` | 通过 `UriDispatcher` 打开外部链接和系统文档。 |
+| `wakelock` | `PowerHandler` | 为长时间运行的脚本获取和释放命名的部分 WakeLock。 |
+| `clipboard` / `clipboard_set` | `ClipboardHandler` | 在 UI 线程上异步读写系统剪贴板。 |
+| `system_info` | `DeviceHandler` | 收集遥测数据：电池电量、充电状态、网络类型、可用内存和磁盘空间。 |
+| `vibrate` | `DeviceHandler` | 指定时长的触觉反馈（Haptic Feedback）。 |
+| `toast` | `DeviceHandler` | 显示原生弹出消息（Toast）。 |
+| `exec` | `ExecHandler` | 在 Shell（`/system/bin/sh` 或经 Shizuku 提权的 `rish`）中执行命令，带超时和流捕获。 |
+| `/gateway/status` | `SystemGatewayServer` | 检查网关状态（健康检查）。 |
+| `/gateway/logs` | `SystemGatewayServer` | 从内存环形缓冲区读取系统日志的最新行。 |
+| `/gateway/commands` | `SystemGatewayServer` | 网关已执行命令及其状态的历史记录。 |
+| `/gateway/crash` | `SystemGatewayServer` | 核心最近一次崩溃的诊断快照。 |
 
-### 2.4. Безопасность и JavaScript Bridge (`com.agy.bridge`)
+### 2.4. 安全与 JavaScript Bridge（`com.qin.agy.bridge`）
 
-Класс `AndroidBridge` предоставляет минимальный, жестко изолированный интерфейс для фронтенда (`@JavascriptInterface`).
+`AndroidBridge` 类为前端提供最小化、严格隔离的接口（`@JavascriptInterface`）。
 
-- **Защита от сторонних фреймов:** Опасные операции (`onUiReady`, `onUiError`, `saveBlob`) требуют передачи криптографического токена `blobBridgeToken`, известного только доверенному верхнеуровневому документу. Сравнение токенов производится через `MessageDigest.isEqual` во избежание timing-атак.
-- **Изоляция:** Из интерфейса `AndroidBridge` исключен доступ к выполнению шелла, отправке произвольных нотификаций и прямому доступу к Shizuku. Все привилегированные операции вынесены в локальный шлюз `SystemGatewayServer`.
+- **防范第三方框架：** 危险操作（`onUiReady`、`onUiError`、`saveBlob`）要求传入加密令牌 `blobBridgeToken`，该令牌仅受信任的顶层文档知晓。令牌比较使用 `MessageDigest.isEqual`，以防时序攻击。
+- **隔离：** `AndroidBridge` 接口中排除了 Shell 执行、发送任意通知和直接访问 Shizuku 的能力。所有特权操作都移交到本地网关 `SystemGatewayServer`。
 
-### 2.5. Динамические иконки и темы (`com.agy.theme`)
+### 2.5. 动态图标与主题（`com.qin.agy.theme`）
 
-- **Архитектурный паттерн Duolingo-style Launcher:**
-  Вместо `activity-alias` в манифесте объявлены два реальных Activity:
-  - `LauncherDarkActivity extends MainActivity` (тема `@style/SplashThemeDark`)
-  - `LauncherLightActivity extends MainActivity` (тема `@style/SplashThemeLight`)
-  Это необходимо для того, чтобы системный Window Splash на Android 12+ (API 31) отображал правильный цвет фона и логотип в соответствии с выбранной темой приложения, а не системной темой дня/ночи.
-- **`LauncherIconSwitcher`**:
-  Переключает включенное состояние (`setComponentEnabledSetting`) между активностями с флагом `DONT_KILL_APP` строго в момент ухода приложения в фон (`onStop`), предотвращая сброс сессии пользователя.
+- **Duolingo 风格启动器架构模式：**
+  清单中没有使用 `activity-alias`，而是声明了两个真实的 Activity：
+  - `LauncherDarkActivity extends MainActivity`（主题 `@style/SplashThemeDark`）
+  - `LauncherLightActivity extends MainActivity`（主题 `@style/SplashThemeLight`）
+  这样做是为了让 Android 12+（API 31）上的系统 Window Splash 按照应用所选主题（而非系统日夜主题）显示正确的背景色和 Logo。
+- **`LauncherIconSwitcher`**：
+  严格在应用退到后台的时刻（`onStop`），以 `DONT_KILL_APP` 标志切换 Activity 的启用状态（`setComponentEnabledSetting`），防止用户会话被重置。
 
 ---
 
-## 3. Результаты аудита и рекомендации
+## 3. 审计结果与建议
 
-### 3.1. Утечки памяти (Memory Leaks)
-1. **Утечка `MainActivity` через `UiBridge` (ИСПРАВЛЕНО):** В `MainActivity.onDestroy()` добавлен вызов `androidBridge.setActivity(null)`. В `UiBridge` и `AndroidBridge` ссылки на `MainActivity` заменены на `WeakReference<MainActivity>`, что предотвращает утечку активити при смене ориентации и пересоздании.
-2. **Утечка WebView в `PopupWindowHandler` (ИСПРАВЛЕНО):** При срабатывании `window.open` после передачи URL во внешний браузер через `oauth.openInBrowser()` вызывается `popup.destroy()`, освобождая нативные ресурсы WebView всплывающего окна.
-3. **Статическая ссылка на Base64 в `FileDownloader`:** Поле `private static DownloadTask pendingTask` удерживает до 64 МБ Base64 данных при ожидании диалога разрешений. Если пользователь нажимает "Отмена", память не освобождается.
-   - *Рекомендация:* Сохранять временный файл на диск вместо удержания строки в памяти, либо сбрасывать задачу по таймауту.
-4. **Накопление объектов `WakeLock` в `PowerHandler` (ИСПРАВЛЕНО):** Реализована автоматическая очистка неактивных или отпущенных блокировок (`!lock.isHeld()`) через метод `cleanupUnheld()`, а также удаление блокировок из `ConcurrentHashMap` при проверке `status` и после `acquire`, что устраняет утечку памяти при истечении таймаута (`timeout_ms`).
-5. **Защита от OOM в `SystemGatewayServer` (ИСПРАВЛЕНО):** В методе `readHeaderLine` добавлен лимит максимальной длины строки заголовка (8192 байта), предотвращающий DoS/OOM при отправке бесконечных заголовков.
+### 3.1. 内存泄漏（Memory Leaks）
+1. **`MainActivity` 经 `UiBridge` 泄漏（已修复）：** 在 `MainActivity.onDestroy()` 中添加了 `androidBridge.setActivity(null)` 调用。`UiBridge` 和 `AndroidBridge` 中对 `MainActivity` 的引用改为 `WeakReference<MainActivity>`，防止横竖屏切换与重建时泄漏 Activity。
+2. **`PopupWindowHandler` 中的 WebView 泄漏（已修复）：** `window.open` 触发后，通过 `oauth.openInBrowser()` 将 URL 传给外部浏览器后调用 `popup.destroy()`，释放弹窗 WebView 的原生资源。
+3. **`FileDownloader` 中的静态 Base64 引用：** 字段 `private static DownloadTask pendingTask` 在等待权限对话框期间最多持有 64 MB 的 Base64 数据。如果用户点击"取消"，内存不会释放。
+   - *建议：* 将临时文件保存到磁盘而不是把字符串留在内存中，或者按超时丢弃任务。
+4. **`PowerHandler` 中 `WakeLock` 对象累积（已修复）：** 实现了对非活动或已释放锁（`!lock.isHeld()`）的自动清理（`cleanupUnheld()` 方法），并在检查 `status` 和 `acquire` 之后从 `ConcurrentHashMap` 中删除锁，消除了超时（`timeout_ms`）到期时的内存泄漏。
+5. **`SystemGatewayServer` 的 OOM 防护（已修复）：** 在 `readHeaderLine` 方法中添加了请求头行最大长度限制（8192 字节），防止发送无尽请求头造成的 DoS/OOM。
 
-### 3.2. Мертвый код (Dead Code)
-Следующие классы удалены из проекта (не использовались ни одним компонентом):
-- `com.agy.bridge.ShellBridge` (удален)
-- `com.agy.bridge.ExternalUrlBridge` (удален)
-- `com.agy.bridge.NotificationBridge` (удален)
-- `com.agy.install.ChmodRunner` (удален)
-- `com.agy.oauth.AuthReloader` (удален)
-- `com.agy.oauth.AuthTokenPoller` (удален)
-- `com.agy.ui.lifecycle.DeepLinkForwarder` (удален)
-- `com.agy.ui.splash.SplashLoadingHtml` (удален)
-- `com.agy.util.LoopbackHost` (удален)
-- `com.agy.util.PackageInspector` (удален)
+### 3.2. 死代码（Dead Code）
+以下类已从项目中删除（没有任何组件使用）：
+- `com.qin.agy.bridge.ShellBridge`（已删除）
+- `com.qin.agy.bridge.ExternalUrlBridge`（已删除）
+- `com.qin.agy.bridge.NotificationBridge`（已删除）
+- `com.qin.agy.install.ChmodRunner`（已删除）
+- `com.qin.agy.oauth.AuthReloader`（已删除）
+- `com.qin.agy.oauth.AuthTokenPoller`（已删除）
+- `com.qin.agy.ui.lifecycle.DeepLinkForwarder`（已删除）
+- `com.qin.agy.ui.splash.SplashLoadingHtml`（已删除）
+- `com.qin.agy.util.LoopbackHost`（已删除）
+- `com.qin.agy.util.PackageInspector`（已删除）
 
-### 3.3. Костыли с путями и IPC
-- **Интеграция `ExecHandler` с `rish` (ИСПРАВЛЕНО):** В `ExecHandler` реализован автоматический поиск пути к бинарнику `rish` (проверка `$PREFIX/bin/rish`, `files/runtime/bin/rish`), обязательная передача `RISH_APPLICATION_ID` (`context.getPackageName()`) для авторизации Shizuku и сброс потенциально конфликтующего `LD_LIBRARY_PATH`.
-- **Хардкод `/storage/emulated/0/` (ИСПРАВЛЕНО):** В `DocumentsContractHelper` и `LogExporter` жестко прописанный путь первичного пользователя заменен на `Environment.getExternalStorageDirectory().getAbsolutePath()`, гарантируя корректную работу в рабочих профилях (Work Profile) и для мультипользовательских окружений (`/storage/emulated/<userId>/`).
-- **Уязвимость `AppFileProvider` (ИСПРАВЛЕНО):** В `getFileForUri` добавлена проверка канонического пути (`file.getCanonicalPath()`) против разрешенных каталогов песочницы (`filesDir`, `cacheDir`, `dataDir`, `getExternalStorageDirectory()`, `getExternalFilesDir()`), защищающая от атак типа Path Traversal (`../`).
+### 3.3. 路径与 IPC 补丁
+- **`ExecHandler` 与 `rish` 的集成（已修复）：** `ExecHandler` 实现了 `rish` 二进制文件的自动路径搜索（检查 `$PREFIX/bin/rish`、`files/runtime/bin/rish`），为 Shizuku 授权强制传递 `RISH_APPLICATION_ID`（`context.getPackageName()`），并重置可能冲突的 `LD_LIBRARY_PATH`。
+- **硬编码 `/storage/emulated/0/`（已修复）：** `DocumentsContractHelper` 和 `LogExporter` 中硬编码的主用户路径已替换为 `Environment.getExternalStorageDirectory().getAbsolutePath()`，保证在工作资料（Work Profile）和多用户环境（`/storage/emulated/<userId>/`）中正常工作。
+- **`AppFileProvider` 漏洞（已修复）：** 在 `getFileForUri` 中添加了规范路径（`file.getCanonicalPath()`）与沙箱允许目录（`filesDir`、`cacheDir`、`dataDir`、`getExternalStorageDirectory()`、`getExternalFilesDir()`）的校验，防止路径遍历（`../`）攻击。

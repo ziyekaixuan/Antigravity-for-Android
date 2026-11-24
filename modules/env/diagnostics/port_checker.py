@@ -1,5 +1,5 @@
 """
-port_checker.py - Validates availability of loopback TCP ports (e.g. 45157, 45158, 45159).
+port_checker.py - Validates availability of loopback TCP ports (e.g. 45167, 45168, 45159).
 """
 import socket
 from typing import Dict, Any

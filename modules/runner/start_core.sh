@@ -6,15 +6,15 @@ set -euo pipefail
 RUNNER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULES_DIR="$(cd "$RUNNER_DIR/.." && pwd)"
 
-# Dynamic APP_ID detection (com.agy vs com.agy.dev)
+# Dynamic APP_ID detection (com.qin.agy vs com.qin.agy.dev)
 if [ -n "${AGY_APPLICATION_ID:-}" ]; then
     APP_ID="$AGY_APPLICATION_ID"
 elif [ -n "${HOME:-}" ] && [[ "$HOME" =~ /data/user/0/([^/]+) ]]; then
     APP_ID="${BASH_REMATCH[1]}"
-elif [ -d "/data/user/0/com.agy.dev" ]; then
-    APP_ID="com.agy.dev"
+elif [ -d "/data/user/0/com.qin.agy.dev" ]; then
+    APP_ID="com.qin.agy.dev"
 else
-    APP_ID="com.agy"
+    APP_ID="com.qin.agy"
 fi
 
 APP_BASE="/data/user/0/$APP_ID"
@@ -35,7 +35,7 @@ LSE_COMPAT="$RT/lib/liblse_compat.so"
 [ -f "$CORE" ]   || { echo "[ERROR] Core binary missing: $CORE"; exit 1; }
 
 # Pre-flight check: protect reserved primary Antigravity ports
-if [ "$PORT" -eq 45157 ] || [ "$PORT" -eq 45158 ]; then
+if [ "$PORT" -eq 45167 ] || [ "$PORT" -eq 45168 ]; then
     echo "[ERROR] Port $PORT is reserved for the primary Antigravity runtime. Standalone runner must use port 45159 or another port." >&2
     exit 1
 fi
